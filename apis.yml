@@ -1,0 +1,50 @@
+name: ReqKey
+description: >-
+  Out-of-band API key management, usage metering, rate limiting, and API traffic analytics. Server-side validation via a
+  REST API with per-consumer credit pools, sub-5ms Redis-backed validation, and multi-region AWS deployment.
+url: https://reqkey.apievangelist.com/apis.yml
+created: '2026-07-26'
+modified: '2026-07-26'
+specificationVersion: '0.21'
+tags:
+  - api-keys
+  - authentication
+  - authorization
+  - rate-limiting
+  - usage-metering
+  - api-analytics
+  - api-management
+  - developer-tools
+  - middleware
+  - observability
+apis:
+  - name: ReqKey REST API
+    description: >-
+      REST API for API key management, usage credits/metering, rate limiting, and traffic analytics. POST/JSON endpoints
+      authenticated with a project root key via Bearer token; single unauthenticated GET /health.
+    humanURL: https://www.reqkey.com/docs
+    baseURL: https://api.reqkey.com
+    tags:
+      - api-keys
+      - authentication
+      - authorization
+      - rate-limiting
+      - usage-metering
+      - api-analytics
+      - api-management
+      - developer-tools
+      - middleware
+      - observability
+    properties:
+      - type: Documentation
+        url: https://www.reqkey.com/docs
+      - type: LLMSTxt
+        url: https://www.reqkey.com/llms.txt
+maintainers:
+  - FN: ReqKey Support
+    url: mailto:support@reqkey.com
+generated:
+  by: apis.io/add
+  model: claude-opus-4-8
+  confidence: 90
+  at: '2026-07-26T12:34:37.893Z'
