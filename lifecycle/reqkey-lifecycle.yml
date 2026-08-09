@@ -1,0 +1,104 @@
+generated: '2026-08-09'
+method: searched
+source: >-
+  https://www.reqkey.com/docs/authentication, /docs/concepts, /docs/api/*,
+  /legal/terms, /pricing, plus live probes of status.reqkey.com,
+  https://www.reqkey.com/status, /changelog and /roadmap on 2026-08-09.
+description: >-
+  ReqKey's operational lifecycle posture, recorded including its absences. There
+  is no API versioning scheme, no deprecation policy, no public changelog, no
+  public status page and no public uptime SLA — an SLA exists only inside an
+  Enterprise agreement. What ReqKey does publish well is the RESOURCE lifecycle
+  (states, soft-delete windows, restore semantics) and the root-key rotation
+  path, both captured below.
+versioning:
+  scheme: none
+  current: null
+  mechanism: null
+  docs: null
+  evidence: >-
+    Endpoint paths carry no version segment (POST /key/validate). No version
+    header, date pin or Accept negotiation is documented anywhere in /docs.
+deprecation:
+  policy_url: null
+  sunset_header: false
+  deprecation_header: false
+  rfc8594: false
+  evidence: >-
+    Zero matches for "deprecat" across every docs page fetched 2026-08-09. No
+    published notice period for breaking changes.
+changelog:
+  url: null
+  evidence: 'https://www.reqkey.com/changelog and /docs/changelog both returned 404 on 2026-08-09.'
+status_page:
+  url: null
+  evidence: >-
+    https://status.reqkey.com does not resolve (no DNS) and
+    https://www.reqkey.com/status returned 404 on 2026-08-09. The only
+    availability signal ReqKey publishes is the unauthenticated GET
+    https://api.reqkey.com/health, which returns
+    {"status":"healthy","timestamp":"..."} — a liveness probe, not a status
+    page with incident history.
+  health_endpoint: https://api.reqkey.com/health
+sla:
+  url: null
+  public_uptime_target: null
+  notes: >-
+    The Terms of Service state the service is provided "as is" without a
+    guaranteed uptime level unless the customer holds an Enterprise agreement
+    that includes an SLA. Planned maintenance is scheduled "to minimize
+    disruption where practical" with no published window or notice period.
+  source: https://www.reqkey.com/legal/terms
+roadmap:
+  url: null
+  evidence: >-
+    https://www.reqkey.com/roadmap returned 404. The only forward-looking public
+    commitment is the Ruby SDK, listed as "soon" on /docs/sdks and in llms.txt.
+performance_claims:
+  server_side_validation_avg_ms: 5
+  server_side_validation_worst_ms: 20
+  conditions: over a reused (keep-alive) connection; caller network latency additional
+  architecture: Redis-backed, multi-region AWS, routed to the nearest region
+  consistency: >-
+    A global sync layer keeps regional credit balances in step and a reconciler
+    heals a missed update within about a second.
+  source: https://www.reqkey.com/llms.txt
+  note: Vendor-published figures; not independently measured by API Evangelist.
+resource_lifecycle:
+  states:
+    - {name: active, applies_to: [consumer, key, plan, project, api], meaning: Validates and deducts normally.}
+    - {name: disabled, applies_to: [consumer, key], meaning: 'Blocked from validation; on a consumer this blocks every key it owns.'}
+    - {name: pending, applies_to: [key], meaning: Created but not yet enabled.}
+    - {name: deleted, applies_to: [consumer, key, api, project], meaning: Soft-deleted and recoverable.}
+  soft_delete_default: true
+  hard_delete_flag: 'permanent: true'
+  recovery_windows:
+    consumers: 7 days
+    keys: 7 days
+    apis: 30 days
+    projects: 'soft delete is reversible; no published purge window'
+  restore: >-
+    Setting a consumer's status from deleted back to active restores its
+    soft-deleted keys and reports keysRestored.
+  cascade: >-
+    Deleting a project cascades to its consumers, keys, APIs and plans and
+    reports consumersAffected / keysAffected / apisAffected. Deleting an API
+    does not cascade to consumers, which are project-level.
+  hard_delete_effects: >-
+    Removes project, consumer, key and API hashes plus all credit state and the
+    global index entry. Irreversible.
+credential_rotation:
+  endpoint: POST /project/rootkey-reroll
+  effect: >-
+    Regenerates the project root key and migrates every child resource to the
+    new key. Consumer-facing API keys keep working; only project auth changes.
+  key_reroll: 'POST /key/update with rerollKey: true regenerates a consumer key value in place — same keyId, same prefix, old value dies immediately.'
+  docs: https://www.reqkey.com/docs/api/projects
+deprecated_operations: []
+gaps:
+  owner: provider
+  items:
+    - No public status page or incident history — GET /health is a liveness probe, not an operational-transparency surface.
+    - No changelog, so a customer cannot see what changed in the API or when.
+    - No versioning scheme and no deprecation policy, so there is no contract governing a breaking change.
+    - No public uptime target for Free or Pro customers.

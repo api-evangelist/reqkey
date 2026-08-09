@@ -1,0 +1,188 @@
+generated: '2026-08-09'
+method: searched
+source: >-
+  https://www.reqkey.com/docs/authentication, /docs/concepts, /docs/errors and
+  the API reference at /docs/api/* — the cross-cutting request/response
+  semantics that apply across every ReqKey endpoint rather than to any single
+  operation.
+description: >-
+  How the ReqKey REST API behaves across every operation: transport style,
+  authentication, pagination, rate-limit signaling, request tracing, resource
+  states, soft-delete windows, and the error envelope. Notably ReqKey documents
+  NO idempotency contract, NO API versioning and NO webhook event catalog —
+  those absences are recorded here as gaps rather than omitted.
+
+base_url: https://api.reqkey.com
+api_style: >-
+  RPC-over-HTTP. Every endpoint except GET /health is a POST that accepts and
+  returns JSON, with the verb encoded in the path (/consumer/create,
+  /key/validate, /project/rootkey-reroll). There are no path parameters, no
+  query parameters and no GET/PUT/PATCH/DELETE methods — identifiers travel in
+  the request body.
+content_type: application/json
+
+authentication:
+  scheme: HTTP Bearer
+  credential: project root key (prefix `reqkey_`)
+  header: 'Authorization: Bearer <rootKey>'
+  scopes: none — the root key is full-access over its project
+  unauthenticated: GET /health
+  docs: https://www.reqkey.com/docs/authentication
+  detail: authentication/reqkey-authentication.yml
+
+idempotency:
+  supported: false
+  mechanism: null
+  evidence: >-
+    No idempotency key, no replay semantics and no `Idempotency-Key` header
+    appear anywhere in the docs (grep of every /docs page fetched 2026-08-09
+    returns zero matches for "idempoten"). Because every write is a POST with
+    no client-supplied request identifier, a retried /consumer/create or
+    /key/create after a network timeout creates a duplicate resource.
+  partially_safe:
+    - >-
+      POST /key/validate is NOT safe to retry blindly — a successful validation
+      deducts credits from the consumer pool, so a retry double-charges. Use
+      `credits: 0` for a free check that skips deduction.
+    - >-
+      POST /key/recharge is additive and therefore also double-applies on retry.
+  gap_owner: provider
+
+pagination:
+  style: page-number
+  applies_to: [POST /consumer/list, POST /consumer/keys, POST /analytics/logs]
+  request_params:
+    page: 1-based page number, default 1
+    limit: page size, default 25, max 200
+    sortBy: 'createdAt (default), name, status, creditsUsed, creditsRemaining'
+    sortOrder: asc | desc (default desc)
+  response_fields:
+    total: project-wide count before filters
+    filtered: count after filters
+    page: current page
+    limit: page size
+    totalPages: total page count
+  filtering: >-
+    Filters compose with AND. /consumer/list accepts `search` (case-insensitive
+    substring on consumerId OR name), `planId` and `status`.
+  cursor: false
+  note: >-
+    POST /plan/list is unpaginated and returns {total, plans[]} for the whole
+    project.
+  docs: https://www.reqkey.com/docs/api/consumers
+
+request_tracing:
+  supported: true
+  mechanism: >-
+    POST /key/validate returns a `requestId` in the response body. That id is
+    the correlation handle: pass it to POST /ingest after your handler runs and
+    ReqKey joins the validation decision to the full request/response log.
+  header: none — the id travels in the JSON body, not in an HTTP header
+  docs: https://www.reqkey.com/docs/api/ingestion
+
+rate_limit_signaling:
+  status: 429
+  headers:
+    Retry-After: seconds until a retry can pass
+    X-RateLimit-Limit: the configured limit
+    X-RateLimit-Remaining: always 0 on a 429
+    X-RateLimit-Window: the configured window, in seconds (validation endpoint)
+    X-RateLimit-Reset: unix timestamp when the limit resets (analytics endpoints)
+  standard: >-
+    Legacy X-RateLimit-* draft headers, not the RFC 9331 `RateLimit` /
+    `RateLimit-Policy` structured fields.
+  free_429: A throttled request consumes no credits and no rate-limit quota.
+  detail: rate-limits/reqkey-rate-limits.yml
+
+versioning:
+  scheme: none
+  evidence: >-
+    Paths carry no version segment (POST /key/validate, not /v1/key/validate),
+    no Accept-header or date-header version negotiation is documented, and the
+    docs contain no "versioning" or "deprecation" section.
+  gap_owner: provider
+
+error_envelope:
+  media_type: application/json
+  shape: '{ "error": "message" }'
+  rfc9457: false
+  detail: errors/reqkey-problem-types.yml
+
+resource_states:
+  values: [active, disabled, pending, deleted]
+  semantics:
+    active: Validates normally.
+    disabled: 'Blocked from validation; on a consumer this blocks every key it owns.'
+    pending: Created but not yet enabled (keys only).
+    deleted: Soft-deleted and recoverable.
+  master_switch: >-
+    Consumer status is the master switch — setting a consumer to `disabled`
+    stops every one of its keys instantly without touching each key.
+  docs: https://www.reqkey.com/docs/concepts
+
+deletion:
+  default: soft delete
+  hard_delete_flag: '`permanent: true` on the delete endpoints'
+  recovery_windows:
+    consumers: 7 days
+    keys: 7 days
+    apis: 30 days
+  restore: >-
+    Moving a consumer's status from `deleted` back to `active` restores its
+    soft-deleted keys and reports the count as `keysRestored`.
+  irreversible: Hard delete also clears credit state and the global index entry.
+
+metadata:
+  supported: true
+  fields: [metadata (arbitrary object), tag / tags, externalId, imageUrl]
+  applies_to: [consumers, keys]
+  note: >-
+    `externalId` is the documented join key back to the caller's own system.
+
+consistency:
+  model: multi-region, eventually consistent
+  propagation: >-
+    Rate-limit and credit changes reach the validation hot path within roughly
+    200ms for active consumers (worst case ~30s for a consumer idle longer than
+    two minutes). Project renames and root-key rerolls sync globally and are
+    visible in every region immediately.
+  rate_limit_windows: >-
+    Each region enforces its own sliding window. End users are pinned to one
+    region and therefore experience the configured limit, but a client
+    deliberately spraying across regions can reach up to limit x regions.
+  docs: https://www.reqkey.com/docs/concepts
+
+events:
+  webhooks_documented: false
+  surface: >-
+    Consumers carry a single `webhookUrl` field ("Webhook URL for
+    notifications") settable on /consumer/create and /consumer/update, and the
+    `shadowLimit` credit threshold is described as firing low-credit warnings.
+    No event catalog, no payload schema, no signature scheme, no delivery or
+    retry semantics and no AsyncAPI are published, and /docs/api/webhooks is a
+    soft-404 ("Unknown API section" served with HTTP 200). There is therefore no
+    consumable event surface to capture and no `Webhooks` pointer is claimed.
+  gap_owner: provider
+
+sdk_conventions:
+  description: >-
+    All seven official SDKs share one option set and wrap the same two calls.
+  options:
+    project_key: root key, read from the REQKEY_PROJECT_KEY environment variable
+    api_id: the ReqKey API this application serves
+    mode: 'both (default) | validate | ingest'
+    enabled: single switch to bypass ReqKey entirely
+    key_location: 'header (default) | query | cookie'
+    key_name: 'defaults to X-API-Key; rebrandable, e.g. x-yourcompany-key'
+  fail_open: >-
+    ReqKey is out of band — customer traffic never routes through it — so
+    fail-open vs fail-closed is the integrator's decision and every SDK exposes
+    it as configuration.
+  docs: https://www.reqkey.com/docs/sdks
+
+cross_links:
+  authentication: authentication/reqkey-authentication.yml
+  errors: errors/reqkey-problem-types.yml
+  rate_limits: rate-limits/reqkey-rate-limits.yml
+  lifecycle: lifecycle/reqkey-lifecycle.yml
+  data_model: data-model/reqkey-data-model.yml

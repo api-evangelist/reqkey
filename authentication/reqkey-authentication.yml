@@ -1,0 +1,66 @@
+generated: '2026-08-09'
+method: searched
+source: https://www.reqkey.com/docs/authentication
+docs: https://www.reqkey.com/docs/authentication
+description: >-
+  ReqKey has exactly one credential model: a per-project secret root key sent as
+  an HTTP Bearer token. There is no OAuth, no OIDC, no mTLS, no per-user token
+  and no scope system — the root key is all-or-nothing over every resource in
+  its project. Captured from the published authentication guide and the per-
+  endpoint auth badges in the API reference; ReqKey publishes no OpenAPI, so no
+  securitySchemes could be derived mechanically.
+summary:
+  types: [http]
+  http_schemes: [bearer]
+  api_key_in: []
+  oauth2_flows: []
+  scopes: none
+  mfa_on_api: false
+schemes:
+  - name: projectRootKey
+    type: http
+    scheme: bearer
+    bearer_format: opaque
+    header: Authorization
+    value_format: 'Bearer reqkey_<opaque>'
+    prefix: reqkey_
+    issued_by: ReqKey dashboard (project Settings)
+    scope: >-
+      Full read/write over every resource in the project — APIs, plans,
+      consumers, keys, validation, credits, analytics and ingestion.
+    rotation:
+      endpoint: POST /project/rootkey-reroll
+      behavior: >-
+        Regenerates the root key and migrates every child resource to the new
+        key. Consumer-facing API keys keep working; only project auth changes.
+      docs: https://www.reqkey.com/docs/api/projects
+    sources:
+      - https://www.reqkey.com/docs/authentication
+      - https://www.reqkey.com/docs/api/projects
+unauthenticated_operations:
+  - {method: GET, path: /health, note: 'Only GET is allowed; other methods return 403.'}
+consumer_credentials:
+  description: >-
+    Distinct from ReqKey's own auth: the keys ReqKey MINTS for its customers'
+    end-consumers. These are the subject of POST /key/validate, not a way to
+    authenticate to ReqKey.
+  format: '<prefix>_<opaque>'
+  default_prefix: the project name
+  custom_prefix: 'the `prefix` field on POST /key/create'
+  default_transport: X-API-Key request header (SDK default; `header`, `query` or `cookie` configurable)
+  carries_credits: false
+  note: >-
+    Credits and rate limits live on the consumer that owns the key, never on the
+    key itself.
+  docs: https://www.reqkey.com/docs/api/keys
+failure_modes:
+  - {status: 401, meaning: missing or invalid project root key}
+  - {status: 403, meaning: 'resource belongs to a different project, or key/consumer disabled'}
+  - {status: 410, meaning: the project is soft-deleted and its root key no longer authenticates}
+gaps:
+  - >-
+    No scoped or restricted keys: the root key can create and delete everything
+    in the project, so there is no least-privilege credential to hand an agent
+    or a CI job.
+  - No OAuth 2.0 / OIDC surface, and no /.well-known/openid-configuration (probed 404).
+  - No published key-rotation schedule or expiry on the root key; rotation is manual via /project/rootkey-reroll.

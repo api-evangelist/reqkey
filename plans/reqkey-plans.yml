@@ -1,0 +1,98 @@
+specification: API Commons Plans
+specificationVersion: '0.1'
+schema: https://raw.githubusercontent.com/api-evangelist/interface-research/main/schema/api-commons.yml#/$defs/Plans
+provider: ReqKey
+providerId: reqkey
+created: '2026-08-09'
+modified: '2026-08-09'
+generated: '2026-08-09'
+method: searched
+reconciled: true
+tags:
+  - API Management
+  - Usage Metering
+  - Rate Limiting
+description: >-
+  ReqKey prices on a single meter — a request, defined as one key validation
+  (/key/validate) or one logged traffic event (/ingest). Nothing else is billed:
+  teams, consumers, projects, APIs, keys and dashboard activity all draw from the
+  same request pool, which is why seats are free. Pro is a prepaid volume ladder
+  paid up front and billed monthly with no annual contract. Crossing an
+  allowance never hard-stops traffic and the overage is never billed. Captured
+  verbatim from the published pricing page on 2026-08-09.
+sources:
+  - https://www.reqkey.com/pricing
+billing:
+  meter: request
+  meter_definition: one key validation OR one logged API call shipped to /ingest
+  cadence: monthly, paid up front
+  annual_contract: false
+  per_seat_fees: false
+  overage_billed: false
+  hard_stop_at_allowance: false
+  tier_changes: instant, in both directions; unused requests carry into the first month on an upgrade
+  processor: Paddle
+plans:
+  - id: reqkey-free
+    name: Free
+    type: freemium
+    price: 0
+    currency: USD
+    period: month
+    description: For side projects and first launches. No credit card required.
+    entries:
+      - {label: Included requests, name: requests, type: quota, metric: requests, limit: 100000, timeFrame: month, unit: 1, price: 0}
+      - {label: API keys, name: keys, type: quota, metric: keys, limit: 1000, timeFrame: concurrent, unit: 1, price: 0}
+      - {label: APIs, name: apis, type: quota, metric: apis, limit: -1, timeFrame: concurrent, unit: 1, price: 0}
+    features:
+      - 100,000 free requests every month
+      - 1,000 API keys
+      - Unlimited APIs
+      - Single-member workspace
+  - id: reqkey-pro
+    name: Pro
+    type: usage-based
+    price: 25
+    currency: USD
+    period: month
+    description: >-
+      For APIs in production with real customers. Prepaid volume tiers from
+      500K to 50M requests per month; the per-million rate falls as volume grows.
+    entries:
+      - {label: 500K requests, name: pro_500k, type: quota, metric: requests, limit: 500000, timeFrame: month, unit: 1, price: 25, per_million: 50}
+      - {label: 1M requests, name: pro_1m, type: quota, metric: requests, limit: 1000000, timeFrame: month, unit: 1, price: 50, per_million: 50}
+      - {label: 2M requests, name: pro_2m, type: quota, metric: requests, limit: 2000000, timeFrame: month, unit: 1, price: 75, per_million: 37.5}
+      - {label: 5M requests, name: pro_5m, type: quota, metric: requests, limit: 5000000, timeFrame: month, unit: 1, price: 150, per_million: 30}
+      - {label: 10M requests, name: pro_10m, type: quota, metric: requests, limit: 10000000, timeFrame: month, unit: 1, price: 200, per_million: 20}
+      - {label: 25M requests, name: pro_25m, type: quota, metric: requests, limit: 25000000, timeFrame: month, unit: 1, price: 350, per_million: 14}
+      - {label: 50M requests, name: pro_50m, type: quota, metric: requests, limit: 50000000, timeFrame: month, unit: 1, price: 500, per_million: 10}
+      - {label: API keys, name: keys, type: quota, metric: keys, limit: 100000, timeFrame: concurrent, unit: 1, price: 0}
+    features:
+      - 100,000 API keys
+      - Unlimited consumers, projects & APIs
+      - Key validations + traffic logs on one meter
+      - Teams included — no per-seat fees
+      - 30-day traffic logs
+      - 180-day audit logs
+      - Analytics API for your own user dashboards
+      - No hard cutoffs when you cross your plan
+  - id: reqkey-enterprise
+    name: Enterprise
+    type: custom
+    price: null
+    currency: USD
+    period: month
+    description: For 100M+ requests a month. Everything in Pro, sized to your traffic.
+    entries:
+      - {label: Volume pricing past 50M requests, name: enterprise_volume, type: metered, metric: requests, limit: -1, timeFrame: month, unit: 1, price: contact-sales}
+    features:
+      - Everything in Pro
+      - Volume pricing past 50M requests
+      - Unlimited projects & APIs
+      - SLA & custom contracts
+      - Dedicated support
+    contact: https://www.reqkey.com/contact
+data_retention:
+  traffic_logs: 30 days (Pro)
+  audit_logs: 180 days (Pro)
+signup: https://www.reqkey.com/sign-in?mode=signup

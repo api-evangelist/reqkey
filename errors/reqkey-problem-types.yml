@@ -1,0 +1,88 @@
+generated: '2026-08-09'
+method: searched
+format: custom-json
+source: https://www.reqkey.com/docs/errors
+docs: https://www.reqkey.com/docs/errors
+description: >-
+  ReqKey's error contract, captured from the published "Errors & status codes"
+  reference plus the per-endpoint Errors tables in the API reference. ReqKey does
+  NOT use RFC 9457 application/problem+json — every failure is a flat JSON object
+  with a single human-readable `error` string. There is no machine-readable error
+  code, no type URI and no field pointer, so a client can only branch on the HTTP
+  status and, for /key/validate, on the `valid` boolean in a 200 body.
+envelope:
+  media_type: application/json
+  shape: '{ "error": "Error message describing what went wrong" }'
+  machine_readable_code: false
+  field_pointer: false
+  type_uri: false
+problems:
+  - status: 400
+    title: Bad Request
+    meaning: Invalid body or a missing required field.
+    remediation: >-
+      Check the required body fields for the endpoint — most 400s are a missing
+      id (consumerId / keyId / planId / apiId), a body that failed to parse, or
+      a rateLimit outside 1–1,000,000,000 requests / 1–86,400 seconds.
+  - status: 401
+    title: Unauthorized
+    meaning: Missing or invalid project root key.
+    remediation: >-
+      Send `Authorization: Bearer <rootKey>`; the key is copied from the
+      project's dashboard Settings.
+  - status: 402
+    title: Payment Required
+    meaning: The consumer's credit limit is exceeded.
+    body_fields: [creditsRemaining, creditsLimit]
+    remediation: >-
+      Not an outage — surface it to your customer. Top up with POST /key/recharge
+      or raise the pool with POST /consumer/update. Retrying does not help.
+  - status: 403
+    title: Forbidden
+    meaning: >-
+      Wrong project, a disabled key or consumer, or the key is not scoped to the
+      requested apiId. Also returned by /health for non-GET methods.
+    remediation: >-
+      Re-enable the consumer or key via /consumer/update or /key/update, or add
+      the apiId to the key's allowedApis. Retrying does not help.
+  - status: 404
+    title: Not Found
+    meaning: The referenced resource does not exist.
+  - status: 409
+    title: Conflict
+    meaning: Resource already exists (e.g. a duplicate apiId on POST /api/create).
+    remediation: Choose a different apiId or omit it and let ReqKey generate one.
+  - status: 410
+    title: Gone
+    meaning: The project is soft-deleted, so its root key no longer authenticates.
+    remediation: Restore the project, or use a different project's root key.
+  - status: 429
+    title: Too Many Requests
+    meaning: >-
+      Either the consumer's own rate limit on /key/validate, or the per-customer
+      limit on the analytics endpoints.
+    headers: [Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Window, X-RateLimit-Reset]
+    remediation: Back off for Retry-After seconds. A 429 consumes no credits and no rate-limit quota.
+  - status: 500
+    title: Server Error
+    meaning: An internal error.
+    remediation: Safe to retry with backoff.
+success_statuses:
+  - {status: 200, meaning: Request succeeded.}
+  - {status: 201, meaning: Resource created.}
+  - {status: 202, meaning: 'Accepted for processing (POST /ingest).'}
+validation_semantics:
+  operation: POST /key/validate
+  note: >-
+    A rejected key is still a successful HTTP call. An unknown or missing key
+    returns 200 with {"valid": false, "message": "Key not found"}; blocking
+    conditions use real status codes — 402 no credits, 403 disabled key/consumer
+    or out-of-scope apiId, 429 over the consumer rate limit. Always branch on
+    `valid`, not on the status alone.
+  rate_limited_body: '{ "valid": false, "rateLimited": true, "retryAfter": <seconds>, "rateLimit": {...} }'
+gaps:
+  - >-
+    No stable machine-readable error codes. Two different 400s ("Missing
+    consumerId" and "body parse error") are indistinguishable to a program
+    without string-matching the `error` message, which providers change freely.
+  - Not RFC 9457; no `type`, `title`, `detail`, `instance` or `errors[]` fields.

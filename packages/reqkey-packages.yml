@@ -1,0 +1,161 @@
+generated: '2026-08-09'
+method: searched
+source: https://www.reqkey.com/docs/sdks
+description: >-
+  First-party ReqKey client libraries, verified directly against the public
+  package registry APIs on 2026-08-09 (registry.npmjs.org, pypi.org/pypi JSON,
+  index.crates.io, repo1.maven.org, api.nuget.org, proxy.golang.org,
+  packagist.org). Every package is published by ReqKey and its source repo lives
+  under the github.com/Req-Key account. Ruby is announced on the SDK page as
+  "soon" and has no published gem, so it is recorded under `roadmap` rather than
+  as a package. The SDKs are middleware wrappers around two REST calls
+  (POST /key/validate and POST /ingest), not generated clients — ReqKey
+  publishes no OpenAPI.
+packages:
+  - language: python
+    registry: pypi
+    name: reqkey
+    version: 0.2.1
+    url: https://pypi.org/project/reqkey/
+    source: https://github.com/Req-Key/reqkey-python
+    docs: https://www.reqkey.com/docs/sdks/python
+    install: pip install reqkey
+    license: MIT
+    official: true
+    extras: [fastapi, flask, django, asgi, wsgi, all]
+    note: >-
+      Adapters for FastAPI, Starlette, Flask, Django (sync + async), any ASGI 3
+      or WSGI app, plus sync and async direct clients.
+    x-evidence: {url: 'https://pypi.org/pypi/reqkey/json', http_status: 200, fetched: '2026-08-09'}
+  - language: javascript
+    registry: npm
+    name: reqkey
+    version: 0.1.0
+    url: https://www.npmjs.com/package/reqkey
+    source: https://github.com/Req-Key/reqkey-node
+    docs: https://www.reqkey.com/docs/sdks/node
+    install: npm install reqkey
+    license: MIT
+    official: true
+    note: >-
+      ESM + CommonJS with TypeScript declarations. Adapters for Express,
+      Next.js, NestJS, Fastify, Koa, plain Node, plus the direct async client.
+    x-evidence: {url: 'https://registry.npmjs.org/reqkey', http_status: 200, fetched: '2026-08-09'}
+  - language: go
+    registry: go-modules
+    name: github.com/Req-Key/reqkey-go
+    version: v0.1.0
+    url: https://pkg.go.dev/github.com/Req-Key/reqkey-go
+    source: https://github.com/Req-Key/reqkey-go
+    docs: https://www.reqkey.com/docs/sdks/go
+    install: go get github.com/Req-Key/reqkey-go@latest
+    official: true
+    note: >-
+      Concurrency-safe client and net/http middleware (fits Chi and
+      Gorilla/Mux), plus native adapters for Gin, Echo and Fiber.
+    x-evidence: {url: 'https://proxy.golang.org/github.com/!req-!key/reqkey-go/@v/list', http_status: 200, fetched: '2026-08-09'}
+  - language: rust
+    registry: crates.io
+    name: reqkey
+    version: 0.1.0
+    url: https://crates.io/crates/reqkey
+    source: https://github.com/Req-Key/reqkey-rust
+    docs: https://www.reqkey.com/docs/sdks/rust
+    install: cargo add reqkey
+    official: true
+    features: [axum, actix-web, rocket, warp, full]
+    note: >-
+      Async Client and blocking SyncClient; the core pulls in no web framework.
+      Confirmed via index.crates.io — the crates.io HTML/API front end returns
+      403 to automated clients under its data-access policy.
+    x-evidence: {url: 'https://index.crates.io/re/qk/reqkey', http_status: 200, fetched: '2026-08-09'}
+  - language: php
+    registry: packagist
+    name: reqkey/reqkey
+    url: https://packagist.org/packages/reqkey/reqkey
+    source: https://github.com/Req-Key/reqkey-php
+    docs: https://www.reqkey.com/docs/sdks/php
+    install: composer require reqkey/reqkey
+    official: true
+    requires: PHP 8.1+
+    note: Adapters for Laravel, Symfony, Slim, and any PSR-15 dispatcher.
+    x-evidence: {url: 'https://packagist.org/search.json?q=reqkey', http_status: 200, fetched: '2026-08-09'}
+  - language: csharp
+    registry: nuget
+    name: ReqKey.AspNetCore
+    version: 0.1.0
+    url: https://www.nuget.org/packages/ReqKey.AspNetCore
+    source: https://github.com/Req-Key/reqkey-dotnet
+    docs: https://www.reqkey.com/docs/sdks/dotnet
+    install: dotnet add package ReqKey.AspNetCore
+    official: true
+    requires: .NET 8
+    note: >-
+      ASP.NET Core DI registration, middleware, Minimal API conventions and MVC
+      attributes; configure in code or bind from appsettings.json.
+    x-evidence: {url: 'https://api.nuget.org/v3/registration5-semver1/reqkey.aspnetcore/index.json', http_status: 200, fetched: '2026-08-09'}
+  - language: csharp
+    registry: nuget
+    name: ReqKey
+    version: 0.1.0
+    url: https://www.nuget.org/packages/ReqKey
+    source: https://github.com/Req-Key/reqkey-dotnet
+    docs: https://www.reqkey.com/docs/sdks/dotnet
+    install: dotnet add package ReqKey
+    official: true
+    note: Framework-neutral .NET client.
+    x-evidence: {url: 'https://api.nuget.org/v3/registration5-semver1/reqkey/index.json', http_status: 200, fetched: '2026-08-09'}
+  - language: java
+    registry: maven-central
+    name: com.reqkey:reqkey
+    version: 1.0.0
+    url: https://central.sonatype.com/artifact/com.reqkey/reqkey
+    source: https://github.com/Req-Key/reqkey-java
+    docs: https://www.reqkey.com/docs/sdks/java
+    install: 'implementation "com.reqkey:reqkey:1.0.0"'
+    official: true
+    requires: Java 17+
+    note: Core client.
+    x-evidence: {url: 'https://repo1.maven.org/maven2/com/reqkey/reqkey/maven-metadata.xml', http_status: 200, fetched: '2026-08-09'}
+  - language: java
+    registry: maven-central
+    name: com.reqkey:reqkey-spring-boot-starter
+    version: 1.0.0
+    url: https://central.sonatype.com/artifact/com.reqkey/reqkey-spring-boot-starter
+    source: https://github.com/Req-Key/reqkey-java
+    docs: https://www.reqkey.com/docs/sdks/java
+    install: 'implementation "com.reqkey:reqkey-spring-boot-starter:1.0.0"'
+    official: true
+    requires: Spring Boot 3.5
+    note: >-
+      Configured via application.yml. Siblings reqkey-servlet (Jakarta Servlet
+      6) and reqkey-jaxrs (Jakarta REST 3.1) are documented on the SDK page;
+      Quarkus and Micronaut reuse the JAX-RS or Servlet adapters.
+    x-evidence: {url: 'https://repo1.maven.org/maven2/com/reqkey/reqkey-spring-boot-starter/maven-metadata.xml', http_status: 200, fetched: '2026-08-09'}
+source_repositories:
+  account: https://github.com/Req-Key
+  type: user
+  public_repos: 7
+  repos:
+    - https://github.com/Req-Key/reqkey-python
+    - https://github.com/Req-Key/reqkey-node
+    - https://github.com/Req-Key/reqkey-go
+    - https://github.com/Req-Key/reqkey-rust
+    - https://github.com/Req-Key/reqkey-php
+    - https://github.com/Req-Key/reqkey-dotnet
+    - https://github.com/Req-Key/reqkey-java
+  note: >-
+    No OpenAPI, AsyncAPI, Postman collection or .proto file exists in any of the
+    seven SDK repositories (full recursive tree listings checked 2026-08-09).
+roadmap:
+  - language: ruby
+    status: announced
+    source: https://www.reqkey.com/docs/sdks
+    note: >-
+      Listed as "soon" in the docs sidebar and in llms.txt; no gem published on
+      RubyGems at the time of this pass.
+not_found:
+  - registry: rubygems
+    query: reqkey
+    note: no first-party gem published
+    x-evidence: {url: 'https://rubygems.org/api/v1/gems/reqkey.json', http_status: 404, fetched: '2026-08-09'}

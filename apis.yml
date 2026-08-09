@@ -1,10 +1,19 @@
 name: ReqKey
 description: >-
-  Out-of-band API key management, usage metering, rate limiting, and API traffic analytics. Server-side validation via a
-  REST API with per-consumer credit pools, sub-5ms Redis-backed validation, and multi-region AWS deployment.
+  ReqKey is out-of-band API key authentication, usage credits, rate limiting and request analytics as a
+  service for teams that sell or expose an API. It never sits in front of customer traffic: your own
+  middleware makes one call to POST /key/validate per request, which checks the key, deducts a credit from
+  that customer's pool and records the decision, typically in under 5ms over a reused connection. The
+  defining design choice is that credits and rate limits live on the CONSUMER rather than the key, so
+  issuing a customer fifty keys never multiplies their plan into fifty quotas and disabling a consumer
+  stops all of its keys at once. Validation is Redis-backed and runs in multiple AWS regions with a global
+  sync layer reconciling credit balances. A second endpoint, POST /ingest, correlates full request/response
+  logs to a validation by requestId and feeds an Analytics API over two datasets. Seven first-party SDKs
+  wrap both calls as framework middleware.
 url: https://reqkey.apievangelist.com/apis.yml
+image: https://www.reqkey.com/og-image.png
 created: '2026-07-26'
-modified: '2026-07-26'
+modified: '2026-08-09'
 specificationVersion: '0.21'
 tags:
   - api-keys
@@ -42,9 +51,83 @@ apis:
         url: https://www.reqkey.com/llms.txt
 maintainers:
   - FN: ReqKey Support
+    email: support@reqkey.com
     url: mailto:support@reqkey.com
 generated:
   by: apis.io/add
   model: claude-opus-4-8
   confidence: 90
   at: '2026-07-26T12:34:37.893Z'
+x-enrichment:
+  date: '2026-08-09'
+  status: enriched
+  artifacts_added: 14
+  pass: local-v1
+  contract_discovery:
+    openapi: not-published
+    graphql: not-published
+    asyncapi: not-published
+    mcp: not-published
+    agent_card: not-published
+    postman: not-published
+    note: >-
+      Probed /openapi.json, /openapi.yaml, /swagger.json, /v1/openapi.json,
+      /api-docs, /docs, /redoc on api.reqkey.com and www.reqkey.com (all 404),
+      every /.well-known/ path on all three hosts (all 404), mcp.reqkey.com
+      (no DNS), and the full recursive file tree of all seven
+      github.com/Req-Key SDK repositories. ReqKey's machine-readable surface is
+      a 26KB llms.txt and nothing else; the API reference is complete,
+      server-rendered HTML with no spec behind it.
+common:
+- type: DomainSecurity
+  url: security/reqkey-domain-security.yml
+- type: VulnerabilityDisclosure
+  url: security/reqkey-vulnerability-disclosure.yml
+- type: Authentication
+  url: authentication/reqkey-authentication.yml
+- type: ErrorCatalog
+  url: errors/reqkey-problem-types.yml
+- type: Conventions
+  url: conventions/reqkey-conventions.yml
+- type: Conformance
+  url: conformance/reqkey-conformance.yml
+- type: Lifecycle
+  url: lifecycle/reqkey-lifecycle.yml
+- type: DataModel
+  url: data-model/reqkey-data-model.yml
+- type: RateLimits
+  url: rate-limits/reqkey-rate-limits.yml
+- type: Plans
+  url: plans/reqkey-plans.yml
+- type: Packages
+  url: packages/reqkey-packages.yml
+- type: SDKs
+  url: packages/reqkey-packages.yml
+- type: LLMsTxt
+  url: llms/reqkey-llms.txt
+- type: Documentation
+  url: https://www.reqkey.com/docs
+- type: APIReference
+  url: https://www.reqkey.com/docs/api/keys
+- type: GettingStarted
+  url: https://www.reqkey.com/docs/how-it-works
+- type: Support
+  url: https://www.reqkey.com/contact
+- type: Blog
+  url: https://www.reqkey.com/blog
+- type: GitHubOrganization
+  url: https://github.com/Req-Key
+- type: Pricing
+  url: https://www.reqkey.com/pricing
+- type: SignUp
+  url: https://www.reqkey.com/sign-in?mode=signup
+- type: Login
+  url: https://www.reqkey.com/sign-in
+- type: TermsOfService
+  url: https://www.reqkey.com/legal/terms
+- type: PrivacyPolicy
+  url: https://www.reqkey.com/legal/privacy
+- type: Website
+  url: https://www.reqkey.com
+- type: LinkedIn
+  url: https://www.linkedin.com/company/reqkey

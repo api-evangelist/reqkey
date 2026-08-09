@@ -1,0 +1,253 @@
+# ReqKey
+
+> ReqKey is API key authentication, usage credits, rate limiting, and request analytics as a service. It never sits in front of your API: your own middleware makes one call to ReqKey per request, which validates the caller's key, deducts a credit from that customer's pool, and records the request. Server-side validation typically answers in under 5 ms.
+
+ReqKey is for teams who sell or expose an API and need to answer three questions on every request: is this key real, is this customer allowed, and have they got budget left. Building that yourself means a key store, a credit ledger, a rate limiter, and a log pipeline — ReqKey is those four things behind one endpoint.
+
+The product is comparable to Unkey (key management), Moesif and Treblle (API analytics), and the metering half of RapidAPI — but combined, and with credits deliberately modelled on the customer rather than the key.
+
+Base URL for the API: https://api.reqkey.com
+Dashboard: https://www.reqkey.com/dashboard
+Support: support@reqkey.com
+
+## The model in one pass
+
+The hierarchy is: Customer -> Project -> API / Plan / Consumer -> Key.
+
+- **Customer** — you, the ReqKey account holder. A customer can own many projects. This is the billing identity for ReqKey itself, and it never appears in your integration code.
+- **Project** — an isolated workspace, addressed by a secret root key that looks like `reqkey_...`. The root key is the Bearer token for every API call you make. Projects own everything below them. Creating and listing projects is dashboard-only today; you copy the root key from the project's Settings page.
+- **API** — a service you want to meter. Registering one with `POST /api/create` returns an `apiId`. Keys can be scoped to specific APIs, so one project can serve several products.
+- **Plan** — an optional reusable template bundling a credit limit, refill schedule, overage allowance, pricing, and a rate limit. Attaching a plan copies its values onto the consumer at attach time; editing the plan later does not retroactively change consumers already on it.
+- **Consumer** — one of *your* customers. **The consumer owns the credit pool and the rate limit.** This is the single most important idea in ReqKey.
+- **Key** — the auth token your customer sends you. A key is credentials only: it carries no credits of its own and draws from its consumer's shared pool. Keys are prefixed with your project name by default, or a custom `prefix` you choose.
+
+### Why credits live on the consumer
+
+If a consumer has a 5,000-credit pool, every key it owns — one or fifty — draws from that same 5,000. This avoids the common billing leak where issuing a customer five keys silently multiplies their plan into five separate quotas. It also means a consumer's status acts as a master switch: set a consumer to `disabled` on a failed payment and all of its keys stop validating instantly, without touching each key.
+
+### Credit mechanics
+
+A consumer's credit object has these parts:
+
+- `limit` — total pool size; `remaining = limit - used`
+- `used` — credits consumed so far, deducted on each successful validation
+- `shadowLimit` — a soft threshold below the hard limit that fires low-credit warnings before the customer is cut off
+- `refill` — automatic top-up on an interval, e.g. `{ "interval": "month", "amount": 5000 }`; intervals are hour, day, week, month
+- `overage` — controlled spillover past the limit, e.g. `{ "enabled": true, "limit": 500 }`
+- `expiresAt` — optional millisecond timestamp after which the credits expire
+
+A consumer gets its credits in one of three ways, in priority order: pass a `credits` object directly; pass a `planId` to inherit the plan's; or omit both, which makes the consumer unlimited and skips the credit check at validation. Resize a pool later with `/consumer/update`, or top it up without changing the limit with `/key/recharge`.
+
+### Rate limits
+
+Credits meter *how much* a consumer may use; a rate limit meters *how fast*. Set `rateLimit` on `/consumer/create` or `/consumer/update` as `{ "limit": 100, "window": 60 }` — 100 validations per 60 seconds. The window is always in seconds and defaults to 1.
+
+- Enforcement is a **sliding window**, so a burst can never exceed `limit` and a client sending steadily at exactly its limit is never spuriously throttled.
+- Rate limits are **consumer-level** — one limit shared by every key that consumer owns. There are no key-level rate limits.
+- They are **independent of credits**: a consumer with unlimited credits can still be rate-limited.
+- **429s are free.** A throttled request consumes no credits and no rate-limit quota, so a client recovers as soon as it slows down.
+- Each region enforces its own window. End users are pinned to one region and therefore experience the configured limit; a client deliberately spraying across regions could reach up to limit x regions.
+- Send `{ "rateLimit": null }` to remove a limit entirely, even while the consumer is on a plan that has one. Changes reach the validation hot path within roughly 200 ms.
+
+### States and lifecycle
+
+`active` (validates normally), `disabled` (blocked; on a consumer this blocks all its keys), `pending` (created but not yet enabled — keys only), and `deleted` (soft-deleted and recoverable). Delete endpoints soft-delete unless you pass `permanent: true`. Recovery windows are 7 days for consumers and keys, 30 days for APIs. Hard delete is irreversible and also clears credit state.
+
+## The validation hot path
+
+`POST /key/validate` is the endpoint you call on every incoming request, from your own middleware, before your handler runs. Authenticate with your project root key as a Bearer token; the caller's key goes in the JSON body.
+
+```bash
+curl -X POST "https://api.reqkey.com/key/validate" \
+  -H "Authorization: Bearer reqkey_your_project_root_key" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "prod_customer_key", "apiId": "api_payment", "credits": 1, "resource": "/api/v1/payments"}'
+```
+
+Body fields: `key` (required), `apiId` (enforced when the key has restricted `allowedApis`), `credits` (defaults to 1; use 0 for a free check with no deduction; non-integers round down), and `resource` (recorded for analytics).
+
+ReqKey runs these checks in order:
+
+1. Key exists
+2. Key belongs to the authenticated project
+3. Key status is `active` — not disabled, pending, or deleted
+4. Consumer status is `active` — a disabled consumer blocks all its keys
+5. Key has not expired
+6. If `apiId` is given and the key is scoped, the key can access that API
+7. Consumer is within its rate limit, when one is configured — this applies even to unlimited-credit consumers
+8. Consumer has sufficient credits — skipped when the consumer is unlimited
+
+A success returns `200` with `valid: true`, a `requestId`, the API's id and name, `creditsRemaining`, `creditsLimit`, `allowedApis`, and `resource`:
+
+```json
+{
+  "valid": true,
+  "requestId": "abc123xyz",
+  "apiId": "api_payment",
+  "apiName": "PaymentAPI",
+  "creditsRemaining": 9995,
+  "creditsLimit": 10000,
+  "allowedApis": ["api_payment", "api_analytics"],
+  "resource": "/api/v1/payments"
+}
+```
+
+Other outcomes:
+
+- `200` with `valid: false` — the key is not real (`"message": "Key not found"`)
+- `402` — credit limit exceeded; body carries `creditsRemaining` and `creditsLimit`
+- `429` — rate limited; body carries `rateLimited: true`, `retryAfter`, and the `rateLimit` in force. The response also sets `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Window` headers
+- `403` — key disabled, consumer disabled, or the key lacks access to the requested `apiId`
+- `400` — missing `key` or unparseable body; `401` — missing or invalid project root key
+
+Notes that trip people up: credits are always deducted from the **consumer's** pool, never the key. `creditsRemaining` and `creditsLimit` are `null` for unlimited consumers, so check for null rather than assuming a number. And keep the returned `requestId` — it is how you attach traffic logs.
+
+## Ingesting traffic logs
+
+Validation records the *decision*. To get full request/response detail into analytics and log search, POST the metadata to `/ingest` after your handler runs, using the `requestId` that `/key/validate` returned. ReqKey correlates the two and ships the result to analytics via Vector.
+
+```bash
+curl -X POST "https://api.reqkey.com/ingest" \
+  -H "Authorization: Bearer reqkey_your_project_root_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "abc123xyz",
+    "method": "POST",
+    "endpoint": "/api/v1/payments",
+    "path": "/api/v1/payments?merchant=acme",
+    "statusCode": 200,
+    "latencyMs": 45,
+    "clientIp": "192.168.1.100",
+    "userAgent": "curl/7.64.1",
+    "requestBody": "{\"amount\": 100}",
+    "responseBody": "{\"status\": \"success\"}"
+  }'
+```
+
+Accepted fields: `requestId` (required), `method`, `endpoint`, `path`, `statusCode`, `latencyMs`, `clientIp` (alias `ip`), `userAgent`, `userId`, `queryParams`, `requestHeaders`, `requestBody`, `responseHeaders`, `responseBody`, and `timestamp` (auto-generated if omitted). Returns `202`. Request and response bodies are truncated to 1000 characters.
+
+Ingestion is optional and decoupled: skip it and key validation still works, you just lose the traffic timeline. Send it and you get per-request logs with method, endpoint, status, latency, IP, and location, plus error-rate and latency charts over any window.
+
+Queried back through the Analytics API — `/analytics/stats`, `/analytics/stats/details`, `/analytics/timeseries`, `/analytics/breakdown`, `/analytics/logs`, and `/analytics/logs/detail` — across two datasets: `api_traffic` (what you sent to `/ingest`) and `key_activity` (validation decisions). These power the ReqKey dashboard and are available for you to build customer-facing usage dashboards of your own.
+
+## SDKs
+
+The SDKs wrap the two REST calls above in idiomatic middleware. One block of configuration adds key validation, credit metering, and traffic analytics to every route; your endpoint handlers stay untouched. This is the recommended integration — it handles key extraction, the validate call, the decision-to-HTTP-response mapping, and the `/ingest` follow-up (including timing and body capture) that is tedious to write by hand.
+
+Every SDK shares the same core options:
+
+- `project_key` — your project root key, read from the `REQKEY_PROJECT_KEY` environment variable. Never hard-code it.
+- `api_id` — the ReqKey API this application serves; validation and analytics are scoped to it.
+- `mode` — `both` (default: guard keys *and* record analytics), `validate` (key checks only), or `ingest` (analytics only).
+- `enabled` — one switch to bypass ReqKey entirely, useful as a local-development toggle.
+- `key_location` and `key_name` — where your consumers send their key (`header`, `query`, or `cookie`) and what it is called. Brand it: `x-yourcompany-key`. Defaults to the `X-API-Key` header. Headers are recommended; query strings leak into server logs and browser history.
+
+Available now:
+
+- **Python** v0.2.0 — `pip install reqkey`, with extras `reqkey[fastapi]`, `[flask]`, `[django]`, `[asgi]`, `[wsgi]`, `[all]`. Covers FastAPI, Starlette, Flask, Django (sync or async), any ASGI 3 or WSGI app, plus sync and async direct clients.
+- **Node.js** v0.1.0 — `npm install reqkey`. ESM and CommonJS with full TypeScript declarations. Adapters for Express, Next.js, NestJS, Fastify, Koa, plain Node, plus the direct async client.
+- **Go** v0.1.0 — `go get github.com/Req-Key/reqkey-go@latest`. A concurrency-safe client and `net/http` middleware that also fits Chi and Gorilla/Mux, plus native adapters for Gin, Echo, and Fiber.
+- **Rust** v0.1.0 — `cargo add reqkey`, with opt-in cargo features `axum`, `actix-web`, `rocket`, `warp`, or `full`. Async `Client` and blocking `SyncClient`; the core never pulls a web framework into your build.
+- **PHP** v0.1.0 — `composer require reqkey/reqkey`. Adapters for Laravel, Symfony, Slim, and any PSR-15 dispatcher. PHP 8.1+.
+- **.NET** v0.1.0 — `dotnet add package ReqKey.AspNetCore` (or `ReqKey` for the framework-neutral client). C# on ASP.NET Core with DI registration, middleware, Minimal API conventions, and MVC attributes; configure in code or bind from appsettings.json. .NET 8.
+- **Java** v1.0.0 — `com.reqkey:reqkey-spring-boot-starter` on Maven Central, plus `reqkey-servlet` (Jakarta Servlet 6), `reqkey-jaxrs` (Jakarta REST 3.1), and `reqkey` (core client). Spring Boot 3.5 configures via application.yml; Quarkus and Micronaut reuse the JAX-RS or Servlet adapters. Java 17+.
+
+Ruby is on the roadmap. If you need a language that is not listed, the REST API is two endpoints and is straightforward to wrap by hand — or email support@reqkey.com, since demand shapes the order we ship in.
+
+## Performance and regions
+
+- Server-side key validation completes in **under 5 ms on average** over a reused connection, and **20 ms in the worst case**. Reusing an HTTP session (keep-alive) matters: it removes TLS handshake cost from the hot path, which is what keeps the average in the low single digits. Every official SDK reuses connections by default.
+- Validation is **Redis-backed and runs in multiple AWS regions**. Requests are routed to the region nearest the caller, so you are not paying a cross-continent round trip to check a key. Add your own network latency to the figures above.
+- Behind the regions, a global sync layer keeps every region's credit balances in step, and a reconciler heals any missed update within about a second. Recharges and limit changes propagate to all regions immediately — you never have to reason about which region a key was created in.
+- ReqKey is **out of band by design**. Your customer traffic never routes through ReqKey; your service calls ReqKey. If you want that call to fail open, that is your middleware's decision to make, and the SDKs expose it as configuration.
+
+## Quickstart
+
+1. Create a project in the dashboard and copy its root key from Settings.
+2. `POST /api/create` with `{"apiName": "PaymentAPI"}` to register the API you want to meter. Keep the `apiId`.
+3. `POST /consumer/create` with `{"name": "Acme Corp", "credits": {"limit": 5000}}` to create a customer. Keep the `consumerId`. This is where credits live.
+4. `POST /key/create` with `{"consumerId": "cons_...", "allowedApis": ["api_payment"]}` to mint a key for that customer. Give the `key` to them; keep the `keyId`.
+5. `POST /key/validate` from your middleware on every request.
+
+Every management call is a POST to https://api.reqkey.com with `Authorization: Bearer <root key>` and a JSON body. `GET /health` is the only unauthenticated endpoint.
+
+## Documentation
+
+- [Introduction](https://www.reqkey.com/docs): what ReqKey is, the mental model, and the five-step quickstart.
+- [How it works](https://www.reqkey.com/docs/how-it-works): the full request lifecycle as a step-by-step walkthrough.
+- [Authentication](https://www.reqkey.com/docs/authentication): the base URL and Bearer root-key scheme.
+- [Core concepts](https://www.reqkey.com/docs/concepts): hierarchy, consumer-level credits, credit mechanics, rate limits, states, and cross-region consistency.
+- [Errors and status codes](https://www.reqkey.com/docs/errors): the error shape and every status code the API returns.
+
+## API reference
+
+- [Projects](https://www.reqkey.com/docs/api/projects): details, update, delete, and root-key reroll. Creating and listing projects is dashboard-only.
+- [APIs](https://www.reqkey.com/docs/api/apis): register and delete the services you meter.
+- [Plans](https://www.reqkey.com/docs/api/plans): reusable credit and rate-limit templates.
+- [Consumers](https://www.reqkey.com/docs/api/consumers): create, update, list, delete, and inspect your customers and their credit pools.
+- [Keys](https://www.reqkey.com/docs/api/keys): create, validate, update, reroll, delete, read credits, and recharge.
+- [Ingestion](https://www.reqkey.com/docs/api/ingestion): POST /ingest and its full field list.
+- [Analytics](https://www.reqkey.com/docs/api/analytics): stats, timeseries, breakdowns, and log search over api_traffic and key_activity.
+- [Platform](https://www.reqkey.com/docs/api/platform): GET /health.
+
+## SDK reference
+
+- [SDK overview](https://www.reqkey.com/docs/sdks): what ships today, per language, and what is on the roadmap.
+- [Python](https://www.reqkey.com/docs/sdks/python)
+- [Node.js](https://www.reqkey.com/docs/sdks/node)
+- [Go](https://www.reqkey.com/docs/sdks/go)
+- [Rust](https://www.reqkey.com/docs/sdks/rust)
+- [PHP](https://www.reqkey.com/docs/sdks/php)
+- [.NET](https://www.reqkey.com/docs/sdks/dotnet)
+- [Java](https://www.reqkey.com/docs/sdks/java)
+
+Each SDK page follows the same structure: install, quickstart, reading the decision, modes, where the key comes from, paths and credit costs, analytics capture, failure behavior, and a full configuration reference.
+
+## Product and pricing
+
+- [Product overview](https://www.reqkey.com/product)
+- [API key management](https://www.reqkey.com/product/api-key-management): issue, scope, rotate, and revoke keys.
+- [API traffic](https://www.reqkey.com/product/api-traffic): request volume, errors, latency, endpoints, regions, and consumers on one searchable timeline.
+- [Plans and credits](https://www.reqkey.com/product/plans-and-credits): the credit model, refills, overage, and plan templates.
+- [Pricing](https://www.reqkey.com/pricing): Free is $0/month with 100,000 requests and 1,000 keys. Pro is prepaid volume tiers — $25/month for 500,000 requests, $50 for 1M, $75 for 2M, $150 for 5M, $200 for 10M, $350 for 25M, and $500 for 50M — with teams at no per-seat fee, 30-day traffic logs, 180-day audit logs, and the Analytics API. Crossing a plan's allowance never hard-stops traffic: requests keep flowing while alert emails prompt an upgrade, and anything accepted past the allowance is never billed. Enterprise is custom for 100M+ requests, with an SLA and dedicated support. Key validations and traffic logs draw from one shared meter, and there are no surprise usage bills.
+
+## Contact
+
+Email **support@reqkey.com** for integration problems, bug reports, SDK requests, security disclosures, and sales. There is also a support chat inside the dashboard for signed-in customers. Company background is at https://www.reqkey.com/about and open roles at https://www.reqkey.com/careers.
+
+## Optional
+
+- [Blog](https://www.reqkey.com/blog): engineering write-ups on rate limiting, key management, and API infrastructure.
+- [Terms of service](https://www.reqkey.com/legal/terms)
+- [Privacy policy](https://www.reqkey.com/legal/privacy)
+- [Refund policy](https://www.reqkey.com/legal/refund)
+- [Sitemap](https://www.reqkey.com/sitemap.xml)
+
+### Blog posts
+
+- [Revoked and still working: the API key revocation window](https://www.reqkey.com/blog/api-key-revocation-window): Google's deleted API keys kept working for up to 23 minutes. We measured what actually sets that window across eight independent caches, and why the number mos…
+- [ASP.NET Core API key authentication: the filter that never ran](https://www.reqkey.com/blog/aspnet-core-api-key-authentication): Run dotnet new webapi on .NET 10 and you get Minimal APIs with no controllers. The API key filter attribute every tutorial hands you does nothing there, and no…
+- [API key format validation: what a checksum actually buys you](https://www.reqkey.com/blog/api-key-format-validation): The received wisdom is that a checksum lets you reject bad API keys without hitting your database. I benchmarked it, and the saving is not where anyone says it…
+- [Rate limiting failed authentication: the flood nobody counts](https://www.reqkey.com/blog/rate-limit-failed-authentication-attempts): Your per-customer rate limiter sits behind authentication, so it never counts the requests you most want to stop. Here is the measurement, the fix, and the pay…
+- [Fastify API key authentication: the hook that guards nothing](https://www.reqkey.com/blog/fastify-api-key-authentication): Registering your API key check as a Fastify plugin can protect nothing outside that plugin. Three traps measured on Fastify 5.11.2, and what to do about each.
+- [Next.js API key authentication: the matcher that skips your API](https://www.reqkey.com/blog/nextjs-api-key-authentication): The negative matcher in the Next.js docs excludes /api, so a key check in proxy.ts never runs on your API routes. Measured on Next.js 16.2.12, plus where the c…
+- [Unkey alternatives in 2026: what each one actually replaces](https://www.reqkey.com/blog/unkey-alternatives): Most “Unkey alternatives” lists hand you a reverse proxy and call it a swap. Here is what each option actually replaces, what it costs, and how much you would…
+- [Axum API key authentication: layer, route_layer, and order](https://www.reqkey.com/blog/axum-api-key-authentication): The twelve-line Axum auth middleware works. Then route_layer quietly hands strangers a route scanner, and ServiceBuilder reverses your layer order. Four probes…
+- [Rate limit by API key, not IP: what four frameworks do by default](https://www.reqkey.com/blog/rate-limit-by-api-key-not-ip): A brand-new customer's very first API call came back 429, because somebody else had already spent the bucket from the same IP address. Four frameworks, four pr…
+- [Laravel API key authentication: your throttle already ran](https://www.reqkey.com/blog/laravel-api-key-authentication): A fresh Laravel 13 install ships no routes/api.php. Then it gets worse: your throttle middleware runs before your API key middleware, so every customer shares…
+- [How to hash API keys (and why bcrypt is the wrong tool)](https://www.reqkey.com/blog/how-to-hash-api-keys): bcrypt turns API key lookup into a full table scan, and past 72 bytes it will verify the wrong key as the right one. Both failures measured, plus the pattern t…
+- [NestJS API key authentication: guard, middleware, or interceptor?](https://www.reqkey.com/blog/nestjs-api-key-authentication-guard): Every NestJS tutorial puts API key validation in a guard and stops there. The layer you pick decides your status codes, your usage bill, and whether a stranger…
+- [Django REST Framework API key authentication without a user row](https://www.reqkey.com/blog/django-rest-framework-api-key-authentication): Checking an API key in a DRF permission class leaves request.user anonymous on a 200 response, which quietly turns your per-customer rate limit into a per-IP o…
+- [Spring Boot API key authentication and the filter bean trap](https://www.reqkey.com/blog/spring-boot-api-key-authentication): Declaring your API key filter as a @Bean registers it twice: once in your security chain and once with the servlet container. Measured results, the four-line f…
+- [API credit pricing: how to decide what one credit is worth](https://www.reqkey.com/blog/api-credit-pricing-model): Most API pricing posts hand you a taxonomy of models and stop before the arithmetic. This is the seller's side: cost per route, the credit unit, whole-number w…
+- [Golang API key authentication middleware: the parts tutorials skip](https://www.reqkey.com/blog/golang-api-key-authentication-middleware): The twelve-line API key middleware everyone ships is fine until customer number two. Here is what to build after it in Go, including the ResponseWriter wrapper…
+- [API key management platform comparison: what 6 tools actually cost](https://www.reqkey.com/blog/api-key-management-platform-comparison): Six platforms priced against the same one million API requests a month, from each vendor's own page: Unkey, Kong, Zuplo, Moesif, Treblle and ReqKey. Same traff…
+- [Express API key authentication middleware, past the hardcoded array](https://www.reqkey.com/blog/express-api-key-authentication-middleware): Every Express API key tutorial stops at an array of strings and a comparison. Here are the three Express-specific traps that break it before you reach the data…
+- [FastAPI API key authentication that survives real customers](https://www.reqkey.com/blog/fastapi-api-key-authentication): Every FastAPI API key tutorial ends at a hardcoded list and a warning not to ship it. This is the next paragraph: storage, lookup, revocation, and the FastAPI…
+- [Per-user rate limits for MCP servers: your 429 is invisible](https://www.reqkey.com/blog/mcp-server-per-user-rate-limits): OAuth hands your MCP server a verified subject claim. It does not hand you a counter. What to meter, where to hang it, and why the model on the other end never…
+- [Your API credit system bills before it knows the request worked](https://www.reqkey.com/blog/api-credit-system-billing-failed-requests): Credits are deducted at the gate, before your handler runs. That one structural fact drives every refund ticket, double-charge and reconciliation gap in a mete…
+- [Fail open or fail closed? What your rate limiter does when Redis dies](https://www.reqkey.com/blog/rate-limiter-fail-open-fail-closed): A Redis failover took eleven seconds. The API returned 500s for four minutes. Most teams never chose what their rate limiter does when its store is unreachable…
+- [Multi-tenant API quotas: where the limit actually belongs](https://www.reqkey.com/blog/multi-tenant-api-quotas-where-limits-belong): A customer on a 1,000-credit plan had somehow used 4,300, and nothing was broken. Where a multi-tenant API quota lives (the key, the user, or the account) deci…
+- [Your 429 Too Many Requests response is probably wrong](https://www.reqkey.com/blog/429-too-many-requests-retry-after): Most 429 responses ship a bare status code and a guessed Retry-After. Here is what the header should actually say, the RateLimit fields that replaced the old t…
+- [API key rotation without downtime: a provider's guide](https://www.reqkey.com/blog/api-key-rotation-without-downtime): Most API key rotation advice is written for the side that consumes the key. This is the other side: how to rotate a key you issued to a customer, prove it is s…
+- [Build an atomic sliding-window rate limiter in Redis and Lua](https://www.reqkey.com/blog/redis-sliding-window-rate-limiter-lua): Most Redis rate-limiter tutorials embed the Lua in a Node or Python client. Here's the atomic sliding-window version — and how to run it at the edge in OpenRes…

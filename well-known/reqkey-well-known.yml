@@ -1,0 +1,51 @@
+generated: '2026-08-09'
+method: probed
+status: none-found
+source: live GET probes of the /.well-known/ surface on every ReqKey host
+description: >-
+  ReqKey publishes no /.well-known/ discovery documents. Every canonical path was
+  probed on all three hosts on 2026-08-09 and every one returned 404 — the API
+  host answers with an openresty 404, the marketing/docs host with the Next.js
+  404 shell. This file is the negative evidence record, not a discovery
+  document: there is deliberately NO `type: WellKnown` pointer in apis.yml,
+  because none of these documents exists.
+hosts:
+  - https://api.reqkey.com
+  - https://www.reqkey.com
+  - https://reqkey.com
+documents: []
+probed:
+  - {host: api.reqkey.com, path: /.well-known/security.txt, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/openid-configuration, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/oauth-authorization-server, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/oauth-protected-resource, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/api-catalog, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/ai-plugin.json, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/agent-card.json, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/agent.json, status: 404}
+  - {host: api.reqkey.com, path: /.well-known/mcp.json, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/security.txt, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/openid-configuration, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/oauth-authorization-server, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/oauth-protected-resource, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/api-catalog, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/ai-plugin.json, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/agent-card.json, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/agent.json, status: 404}
+  - {host: www.reqkey.com, path: /.well-known/mcp.json, status: 404}
+  - {host: reqkey.com, path: /.well-known/security.txt, status: 404}
+  - {host: reqkey.com, path: /.well-known/openid-configuration, status: 404}
+  - {host: reqkey.com, path: /.well-known/oauth-authorization-server, status: 404}
+  - {host: reqkey.com, path: /.well-known/oauth-protected-resource, status: 404}
+  - {host: reqkey.com, path: /.well-known/api-catalog, status: 404}
+  - {host: reqkey.com, path: /.well-known/ai-plugin.json, status: 404}
+  - {host: reqkey.com, path: /.well-known/agent-card.json, status: 404}
+  - {host: reqkey.com, path: /.well-known/agent.json, status: 404}
+  - {host: reqkey.com, path: /.well-known/mcp.json, status: 404}
+gap:
+  owner: provider
+  recommendation: >-
+    A single /.well-known/security.txt (RFC 9116) naming support@reqkey.com as
+    the security contact, and a /.well-known/api-catalog (RFC 9727) pointing at
+    an apis.json, are the two cheapest machine-readable discovery wins available
+    to ReqKey today. Neither requires changing the API.

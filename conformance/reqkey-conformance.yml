@@ -1,0 +1,125 @@
+generated: '2026-08-09'
+method: derived
+source: >-
+  Derived from the published ReqKey documentation (docs/authentication,
+  docs/concepts, docs/errors, docs/api/*), the legal pages, and live probes of
+  the /.well-known/ surface recorded in well-known/reqkey-well-known.yml. ReqKey
+  publishes no OpenAPI, so nothing here could be derived from a spec.
+description: >-
+  Which cross-cutting API and security standards the ReqKey API conforms to.
+  ReqKey is a small, deliberately narrow REST-ish surface with one Bearer
+  credential; most of the standards below are honest `false` entries, and ReqKey
+  publishes no security certifications or compliance program at all.
+standards:
+  - id: http-bearer-auth
+    conforms: true
+    evidence: >-
+      RFC 6750 Bearer token in the Authorization header is the sole credential
+      (https://www.reqkey.com/docs/authentication).
+  - id: rest
+    conforms: false
+    evidence: >-
+      RPC-over-HTTP, not REST: every operation except GET /health is a POST with
+      the verb in the path (/consumer/create, /key/validate), no path or query
+      parameters, and no use of GET/PUT/PATCH/DELETE for resource semantics.
+  - id: openapi
+    conforms: false
+    evidence: >-
+      No OpenAPI or Swagger document exists. Probed /openapi.json,
+      /openapi.yaml, /swagger.json, /v1/openapi.json, /api-docs, /docs, /redoc on
+      api.reqkey.com (all 404) and on www.reqkey.com (all 404), and checked the
+      recursive file tree of all seven github.com/Req-Key SDK repositories.
+  - id: asyncapi
+    conforms: false
+    evidence: No event or streaming surface is published; /docs/api/webhooks is a soft-404.
+  - id: graphql
+    conforms: false
+    evidence: No /graphql endpoint is documented or advertised.
+  - id: rfc9457-problem-details
+    conforms: false
+    evidence: >-
+      Errors are a flat {"error": "message"} JSON object with no type, title,
+      detail or instance, served as application/json rather than
+      application/problem+json (https://www.reqkey.com/docs/errors).
+  - id: oauth2
+    conforms: false
+    evidence: No OAuth 2.0 surface; /.well-known/oauth-authorization-server returned 404 on every host.
+  - id: oidc
+    conforms: false
+    evidence: /.well-known/openid-configuration returned 404 on every host.
+  - id: rfc9116-security-txt
+    conforms: false
+    evidence: /.well-known/security.txt returned 404 on api.reqkey.com, www.reqkey.com and reqkey.com.
+  - id: rfc9727-api-catalog
+    conforms: false
+    evidence: /.well-known/api-catalog returned 404 on every host.
+  - id: apis-json
+    conforms: false
+    evidence: >-
+      https://www.reqkey.com/apis.json returned 404 on 2026-08-09, despite an
+      apis.json being referenced in the original community submission.
+  - id: rfc9331-ratelimit-headers
+    conforms: false
+    evidence: >-
+      429 responses carry the legacy X-RateLimit-Limit / X-RateLimit-Remaining /
+      X-RateLimit-Window / X-RateLimit-Reset draft headers rather than the RFC
+      9331 RateLimit and RateLimit-Policy structured fields.
+  - id: rfc7231-retry-after
+    conforms: true
+    evidence: 429 responses set Retry-After in seconds (https://www.reqkey.com/docs/errors).
+  - id: rfc8594-sunset-header
+    conforms: false
+    evidence: No Sunset or Deprecation header support and no deprecation policy is documented.
+  - id: idempotency
+    conforms: false
+    evidence: >-
+      No idempotency key, replay semantics or Idempotency-Key header appear
+      anywhere in the documentation; POST /key/validate deducts credits and is
+      therefore not retry-safe without `credits: 0`.
+  - id: pagination
+    conforms: true
+    evidence: >-
+      Page/limit pagination with sortBy/sortOrder and total/filtered/totalPages
+      response fields on /consumer/list, /consumer/keys and /analytics/logs
+      (https://www.reqkey.com/docs/api/consumers).
+  - id: llms-txt
+    conforms: true
+    evidence: >-
+      A 26KB hand-written llms.txt is served at https://www.reqkey.com/llms.txt
+      (HTTP 200, text/plain) covering the model, the hot path, ingestion, SDKs,
+      pricing and a full documentation index.
+  - id: mcp
+    conforms: false
+    evidence: No MCP server is published or advertised; mcp.reqkey.com does not resolve.
+  - id: a2a
+    conforms: false
+    evidence: /.well-known/agent-card.json and /.well-known/agent.json returned 404 on every host.
+  - id: hsts
+    conforms: partial
+    evidence: >-
+      www.reqkey.com sets HSTS with max-age 63072000; api.reqkey.com — the host
+      that actually carries the credentials — does not set HSTS at all
+      (security/reqkey-domain-security.yml).
+  - id: dnssec
+    conforms: false
+    evidence: reqkey.com is not DNSSEC-signed (security/reqkey-domain-security.yml).
+  - id: caa
+    conforms: false
+    evidence: No CAA records published for reqkey.com (security/reqkey-domain-security.yml).
+  - id: spf
+    conforms: true
+    evidence: SPF record present on reqkey.com.
+  - id: dmarc
+    conforms: true
+    evidence: DMARC published with policy `reject` on reqkey.com.
+certifications:
+  published: false
+  evidence: >-
+    No SOC 2, ISO 27001, PCI DSS, HIPAA, FedRAMP or CSA STAR claim appears
+    anywhere on the site; /trust, /security and /compliance all returned 404 and
+    trust.reqkey.com does not resolve. The privacy policy references honoring
+    GDPR and CCPA data-subject rights, which is a legal commitment rather than a
+    certification, and states security controls generically ("encryption in
+    transit, scoped credentials, least-privilege access").
+  privacy_regimes_referenced: [GDPR, CCPA]
+  source: https://www.reqkey.com/legal/privacy

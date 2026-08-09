@@ -1,0 +1,107 @@
+specification: API Commons Rate Limits
+specificationVersion: '0.1'
+schema: https://raw.githubusercontent.com/api-evangelist/interface-research/main/schema/api-commons.yml#/$defs/RateLimits
+provider: ReqKey
+providerId: reqkey
+created: '2026-08-09'
+modified: '2026-08-09'
+generated: '2026-08-09'
+method: searched
+reconciled: true
+tags:
+  - Rate Limiting
+  - API Management
+  - Usage Metering
+description: >-
+  What ReqKey enforces on ITS OWN API. ReqKey advertises "no rate limits on any
+  plan" for the metered request surface (/key/validate and /ingest) — the meter
+  is a monthly request allowance, not a per-second cap, and crossing the
+  allowance does not hard-stop traffic. The analytics endpoints are the one
+  exception: they are rate-limited per customer, though ReqKey does not publish
+  the numeric limit. Consumer-level rate limits configured through
+  /consumer/create are a PRODUCT FEATURE ReqKey offers its customers for their
+  own APIs, not a limit on the ReqKey API; they are recorded separately below so
+  the two are never conflated.
+sources:
+  - https://www.reqkey.com/pricing
+  - https://www.reqkey.com/docs/errors
+  - https://www.reqkey.com/docs/api/analytics
+headers:
+  requestId: requestId (JSON body field on POST /key/validate — not an HTTP header)
+  rateLimitLimit: X-RateLimit-Limit
+  rateLimitRemaining: X-RateLimit-Remaining
+  rateLimitWindow: X-RateLimit-Window
+  rateLimitReset: X-RateLimit-Reset
+  retryAfter: Retry-After
+responseCodes:
+  throttled: 429
+  quotaExceeded: 402
+standard: legacy X-RateLimit-* draft headers (not the RFC 9331 RateLimit structured fields)
+limits:
+  - name: Metered requests — Free tier
+    scope: account
+    metric: requests_per_month
+    limit: 100000
+    timeFrame: month
+    note: >-
+      One request = one key validation or one logged /ingest call. No per-second
+      cap; the tier is an allowance.
+  - name: Metered requests — Pro (entry tier)
+    scope: account
+    metric: requests_per_month
+    limit: 500000
+    timeFrame: month
+  - name: Metered requests — Pro (top tier)
+    scope: account
+    metric: requests_per_month
+    limit: 50000000
+    timeFrame: month
+    note: Volume tiers run 500K / 1M / 2M / 5M / 10M / 25M / 50M; see plans/reqkey-plans.yml.
+  - name: API keys — Free tier
+    scope: account
+    metric: keys
+    limit: 1000
+    timeFrame: concurrent
+  - name: API keys — Pro tier
+    scope: account
+    metric: keys
+    limit: 100000
+    timeFrame: concurrent
+  - name: Analytics endpoints
+    scope: account
+    metric: requests
+    limit: null
+    timeFrame: unpublished
+    note: >-
+      /analytics/* is rate-limited per customer and returns 429 with
+      X-RateLimit-Limit / X-RateLimit-Remaining / X-RateLimit-Reset /
+      Retry-After. ReqKey does not publish the numeric limit or the window; a
+      customer with no configured limit has unlimited analytics access.
+overage:
+  hard_stop: false
+  behavior: >-
+    Crossing a tier allowance never hard-stops traffic. Requests keep flowing
+    while ReqKey emails an upgrade prompt, and anything accepted past the
+    allowance is never billed.
+  source: https://www.reqkey.com/pricing
+product_feature_not_a_limit:
+  description: >-
+    The rate limiter ReqKey SELLS, applied to its customers' own consumers — not
+    to the ReqKey API. Recorded for completeness.
+  configured_on: [POST /consumer/create, POST /consumer/update, POST /plan/create]
+  shape: '{ "limit": <1..1000000000>, "window": <1..86400 seconds, default 1> }'
+  algorithm: sliding window
+  scope: consumer — shared by every key that consumer owns; there are no key-level rate limits
+  independent_of_credits: true
+  free_429: A throttled request consumes no credits and no rate-limit quota.
+  removal: 'send { "rateLimit": null } on /consumer/update'
+  propagation: ~200ms to the validation hot path (worst case ~30s for a consumer idle >2 minutes)
+  per_region: >-
+    Each region enforces its own window; a client spraying across regions can
+    reach up to limit x regions.
+  docs: https://www.reqkey.com/docs/concepts
+gaps:
+  - >-
+    The analytics rate limit is enforced but its value is never published, so an
+    integrator cannot size a polling loop without discovering the 429 in
+    production.

@@ -1,0 +1,141 @@
+generated: '2026-08-09'
+method: searched
+source: >-
+  https://www.reqkey.com/docs/concepts (the published resource hierarchy) and
+  the request/response bodies in https://www.reqkey.com/docs/api/{projects,apis,
+  plans,consumers,keys,ingestion,analytics}. Entity ids and prefixes are taken
+  verbatim from the documented example payloads; ReqKey publishes no OpenAPI, so
+  nothing here was derived from a spec.
+docs: https://www.reqkey.com/docs/concepts
+description: >-
+  The ReqKey entity graph. Six entities, one hierarchy:
+  Customer -> Project -> (API | Plan | Consumer) -> Key. The load-bearing idea
+  is that the CREDIT POOL and the RATE LIMIT hang off the Consumer, never the
+  Key — a consumer with fifty keys still has one pool, which is what stops the
+  usual billing leak where issuing extra keys silently multiplies a plan.
+notation: >-
+  relationships use has_one / has_many / belongs_to with the reference field
+  name; direction is from the entity that owns the reference.
+
+entities:
+  - name: Customer
+    id_prefix: null
+    id_field: customerId
+    domain: billing
+    description: >-
+      The ReqKey account holder — you. Owns projects, is the billing identity
+      for ReqKey itself, and never appears in integration code. Surfaced only as
+      customerId on POST /project/details.
+  - name: Project
+    id_prefix: reqkey_
+    id_field: rootKey
+    domain: core
+    description: >-
+      An isolated workspace addressed by its secret root key, which is also the
+      Bearer token for every API call. Owns APIs, plans, consumers and keys.
+      Created and listed in the dashboard only — there is no API endpoint for
+      either.
+    fields: [rootKey, name, customerId, status, createdAt, expiresAt, counts.consumers, counts.apis]
+  - name: API
+    id_prefix: api_
+    id_field: apiId
+    domain: metering
+    description: >-
+      A service the customer wants to meter. Keys can be scoped to specific
+      APIs by apiId. Custom ids allowed; both apiName and apiId must match
+      ^[a-zA-Z0-9_-]+$.
+    fields: [apiId, apiName, createdAt, expiresAt, status]
+  - name: Plan
+    id_prefix: plan_
+    id_field: planId
+    domain: billing
+    description: >-
+      An optional project-level template bundling a credit limit, refill,
+      overage, pricing and a rate limit. Values are COPIED to the consumer at
+      attach time — editing a plan later never touches consumers already on it.
+    fields: [planId, planName, credits, pricing, rateLimit, status, createdAt, updatedAt]
+  - name: Consumer
+    id_prefix: cons_
+    id_field: consumerId
+    domain: core
+    description: >-
+      One of the customer's own customers. Owns the single credit pool and the
+      rate limit shared by all of its keys. Its status is a master switch —
+      disabling a consumer stops every key it owns instantly.
+    fields: [consumerId, name, status, planId, credits, rateLimit, tags, metadata, webhookUrl, imageUrl, externalId, createdAt, updatedAt, expiresAt]
+  - name: Key
+    id_prefix: key_
+    id_field: keyId
+    domain: core
+    description: >-
+      The token a consumer sends to the customer's API. Credentials only — it
+      carries no credits of its own and draws from its consumer's pool. The key
+      VALUE is separately prefixed with the project name or a custom `prefix`.
+    fields: [keyId, key, consumerId, allowedApis, status, tag, metadata, createdAt, updatedAt]
+  - name: Credits
+    id_prefix: null
+    id_field: null
+    domain: metering
+    description: >-
+      An embedded value object on Consumer (and on Plan as a template), not a
+      standalone resource. remaining = limit - used.
+    fields: [limit, used, remaining, shadowLimit, refill, overage, expiresAt]
+  - name: RateLimit
+    id_prefix: null
+    id_field: null
+    domain: metering
+    description: >-
+      An embedded value object on Consumer (and on Plan as a template).
+      Sliding window; limit 1-1,000,000,000, window 1-86,400 seconds, default 1.
+    fields: [limit, window]
+  - name: RequestLog
+    id_prefix: null
+    id_field: requestId
+    domain: analytics
+    description: >-
+      A traffic event shipped to POST /ingest and correlated to a validation
+      decision by the requestId that /key/validate returned. Queried back
+      through /analytics/* as the `api_traffic` dataset.
+    fields: [requestId, method, endpoint, path, statusCode, latencyMs, clientIp, userAgent, userId, queryParams, requestHeaders, requestBody, responseHeaders, responseBody, timestamp]
+    note: Request and response bodies are truncated to 1000 characters.
+  - name: KeyActivity
+    id_prefix: null
+    id_field: requestId
+    domain: analytics
+    description: >-
+      The validation-decision dataset, recorded automatically by /key/validate
+      and queried as the `key_activity` source on /analytics/*.
+
+relationships:
+  - {from: Customer, to: Project, type: has_many, via: customerId}
+  - {from: Project, to: API, type: has_many, via: rootKey}
+  - {from: Project, to: Plan, type: has_many, via: projectKey}
+  - {from: Project, to: Consumer, type: has_many, via: projectKey}
+  - {from: Project, to: Key, type: has_many, via: 'project ownership (enforced on every operation; 403 otherwise)'}
+  - {from: Consumer, to: Key, type: has_many, via: consumerId}
+  - {from: Key, to: Consumer, type: belongs_to, via: consumerId}
+  - {from: Consumer, to: Credits, type: has_one, via: credits}
+  - {from: Consumer, to: RateLimit, type: has_one, via: rateLimit}
+  - {from: Consumer, to: Plan, type: belongs_to, via: planId, note: 'optional; values are copied at attach time, not referenced live'}
+  - {from: Plan, to: Credits, type: has_one, via: credits}
+  - {from: Plan, to: RateLimit, type: has_one, via: rateLimit}
+  - {from: Key, to: API, type: has_many, via: allowedApis, note: 'array of apiId, or ["*"] for all'}
+  - {from: RequestLog, to: KeyActivity, type: has_one, via: requestId, note: correlation is by requestId returned from /key/validate}
+
+invariants:
+  - Credits are always deducted from the consumer's pool, never from the key.
+  - creditsRemaining and creditsLimit are null for an unlimited consumer — check for null rather than assuming a number.
+  - A consumer gets credits in priority order — direct `credits` object > `planId` inheritance > neither (unlimited).
+  - Plan values are copy-on-attach; a later plan edit does not propagate to consumers already attached.
+  - Deleting an API does not cascade to consumers, because consumers are project-level.
+  - Deleting a key never frees or changes consumer credits.
+
+operations_by_entity:
+  Project: [POST /project/details, POST /project/update, POST /project/delete, POST /project/rootkey-reroll]
+  API: [POST /api/create, POST /api/delete]
+  Plan: [POST /plan/create, POST /plan/details, POST /plan/list, POST /plan/update, POST /plan/delete]
+  Consumer: [POST /consumer/create, POST /consumer/update, POST /consumer/details, POST /consumer/list, POST /consumer/keys, POST /consumer/delete]
+  Key: [POST /key/create, POST /key/validate, POST /key/update, POST /key/details, POST /key/delete, POST /key/credits, POST /key/recharge]
+  RequestLog: [POST /ingest]
+  Analytics: [POST /analytics/stats, POST /analytics/stats/details, POST /analytics/timeseries, POST /analytics/breakdown, POST /analytics/logs, POST /analytics/logs/detail]
+  Platform: [GET /health]
