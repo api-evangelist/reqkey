@@ -79,6 +79,8 @@ x-enrichment:
       a 26KB llms.txt and nothing else; the API reference is complete,
       server-rendered HTML with no spec behind it.
 common:
+- type: MCPServer
+  url: mcp/reqkey-mcp.yml
 - type: DomainSecurity
   url: security/reqkey-domain-security.yml
 - type: VulnerabilityDisclosure
