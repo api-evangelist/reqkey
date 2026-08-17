@@ -10,7 +10,7 @@ description: >-
   sync layer reconciling credit balances. A second endpoint, POST /ingest, correlates full request/response
   logs to a validation by requestId and feeds an Analytics API over two datasets. Seven first-party SDKs
   wrap both calls as framework middleware.
-url: https://reqkey.apievangelist.com/apis.yml
+url: https://raw.githubusercontent.com/api-evangelist/reqkey/refs/heads/main/apis.yml
 image: https://www.reqkey.com/og-image.png
 created: '2026-07-26'
 modified: '2026-08-09'
