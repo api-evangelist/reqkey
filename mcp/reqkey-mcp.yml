@@ -1,221 +1,310 @@
 generated: '2026-08-09'
 method: derived
 status: candidate
-source: >-
-  Derived from the 32 endpoints published in the ReqKey API reference
-  (https://www.reqkey.com/docs/api/*) and llms.txt. ReqKey operates NO MCP
-  server: mcp.reqkey.com does not resolve, /.well-known/mcp.json returned 404 on
-  every host, no @modelcontextprotocol package or registry listing exists, and
-  the docs never mention MCP as a ReqKey surface (their blog discusses MCP
-  rate-limiting as a topic, not a product).
-description: >-
-  A CANDIDATE tool surface — what an official ReqKey MCP server would expose if
-  ReqKey shipped one. This is an API Evangelist proposal grounded in real,
-  documented endpoints, NOT a server that exists. Because no server exists,
-  there is deliberately no `type: MCPServer` pointer in apis.yml; wiring one
-  would credit ReqKey with an agent surface it does not operate. Tool input
-  schemas are intentionally omitted: ReqKey publishes no OpenAPI, so there is no
-  machine-readable parameter contract to inherit and inventing one would be
-  fabrication. Body fields are named from the docs and linked back to them.
+source: 'Derived from the 32 endpoints published in the ReqKey API reference (https://www.reqkey.com/docs/api/*)
+  and llms.txt. ReqKey operates NO MCP server: mcp.reqkey.com does not resolve, /.well-known/mcp.json
+  returned 404 on every host, no @modelcontextprotocol package or registry listing exists, and the docs
+  never mention MCP as a ReqKey surface (their blog discusses MCP rate-limiting as a topic, not a product).'
+description: 'A CANDIDATE tool surface — what an official ReqKey MCP server would expose if ReqKey shipped
+  one. This is an API Evangelist proposal grounded in real, documented endpoints, NOT a server that exists.
+  Because no server exists, there is deliberately no `type: MCPServer` pointer in apis.yml; wiring one
+  would credit ReqKey with an agent surface it does not operate. Tool input schemas are intentionally
+  omitted: ReqKey publishes no OpenAPI, so there is no machine-readable parameter contract to inherit
+  and inventing one would be fabrication. Body fields are named from the docs and linked back to them.'
 server:
   name: reqkey
   transport: http
   url: null
-  auth: 'HTTP Bearer — the project root key (reqkey_...)'
-  note: >-
-    A root key is full-access over its project, so an MCP server fronting it
-    would hand an agent delete rights over every consumer and key. A restricted
-    or read-only credential is a prerequisite ReqKey does not currently offer.
+  auth: HTTP Bearer — the project root key (reqkey_...)
+  note: A root key is full-access over its project, so an MCP server fronting it would hand an agent delete
+    rights over every consumer and key. A restricted or read-only credential is a prerequisite ReqKey
+    does not currently offer.
 probes:
-  - {url: 'https://mcp.reqkey.com/', result: DNS does not resolve}
-  - {url: 'https://api.reqkey.com/.well-known/mcp.json', http_status: 404}
-  - {url: 'https://www.reqkey.com/.well-known/mcp.json', http_status: 404}
-  - {url: 'https://api.reqkey.com/.well-known/oauth-protected-resource', http_status: 404}
+- url: https://mcp.reqkey.com/
+  result: DNS does not resolve
+- url: https://api.reqkey.com/.well-known/mcp.json
+  http_status: 404
+- url: https://www.reqkey.com/.well-known/mcp.json
+  http_status: 404
+- url: https://api.reqkey.com/.well-known/oauth-protected-resource
+  http_status: 404
 tools:
-  - name: validate_key
-    description: Validate a consumer API key, enforce scope and rate limit, and deduct credits.
-    source_operation: 'POST /key/validate'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [key, apiId, credits, resource]
-    consequence: write
-    note: >-
-      Not read-only — a successful call deducts from the consumer's credit pool
-      and is not idempotent. An agent should pass `credits: 0` for inspection.
-  - name: get_key_details
-    description: Fetch a key with its consumer's credit state.
-    source_operation: 'POST /key/details'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [keyId, key]
-    consequence: read
-  - name: get_key_credits
-    description: Read a consumer's current credit limit and remaining balance via one of its keys.
-    source_operation: 'POST /key/credits'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [key]
-    consequence: read
-  - name: create_key
-    description: Mint a new API key for a consumer, optionally scoped to specific APIs.
-    source_operation: 'POST /key/create'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [consumerId, allowedApis, prefix, tag, metadata, status]
-    consequence: write
-  - name: update_key
-    description: Change a key's allowed APIs, status, tag or metadata, or reroll its value.
-    source_operation: 'POST /key/update'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [keyId, key, allowedApis, rerollKey, status, tag, metadata]
-    consequence: write
-  - name: delete_key
-    description: Soft- or hard-delete a key.
-    source_operation: 'POST /key/delete'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [keyId, key, permanent]
-    consequence: destructive
-  - name: recharge_credits
-    description: Add credits to a consumer's pool without changing its limit.
-    source_operation: 'POST /key/recharge'
-    docs: https://www.reqkey.com/docs/api/keys
-    body_fields: [key, credits]
-    consequence: write
-  - name: create_consumer
-    description: Create one of your customers, with a credit pool and optional rate limit.
-    source_operation: 'POST /consumer/create'
-    docs: https://www.reqkey.com/docs/api/consumers
-    body_fields: [name, credits, planId, rateLimit, tags, webhookUrl, metadata, imageUrl, externalId, status]
-    consequence: write
-  - name: update_consumer
-    description: Update a consumer, including credits, rate limit and status (the master switch).
-    source_operation: 'POST /consumer/update'
-    docs: https://www.reqkey.com/docs/api/consumers
-    body_fields: [consumerId, name, status, planId, credits, rateLimit, tags, metadata, webhookUrl, imageUrl, externalId, expiresAt]
-    consequence: write
-  - name: get_consumer
-    description: Fetch a consumer with full credit and rate-limit status.
-    source_operation: 'POST /consumer/details'
-    docs: https://www.reqkey.com/docs/api/consumers
-    body_fields: [consumerId]
-    consequence: read
-  - name: list_consumers
-    description: Page through consumers with search, status and plan filters.
-    source_operation: 'POST /consumer/list'
-    docs: https://www.reqkey.com/docs/api/consumers
-    body_fields: [page, limit, search, planId, status, sortBy, sortOrder]
-    consequence: read
-  - name: list_consumer_keys
-    description: List the keys belonging to a consumer.
-    source_operation: 'POST /consumer/keys'
-    docs: https://www.reqkey.com/docs/api/consumers
-    consequence: read
-  - name: delete_consumer
-    description: Soft- or hard-delete a consumer and its keys.
-    source_operation: 'POST /consumer/delete'
-    docs: https://www.reqkey.com/docs/api/consumers
-    consequence: destructive
-  - name: create_plan
-    description: Create a reusable credit and rate-limit template.
-    source_operation: 'POST /plan/create'
-    docs: https://www.reqkey.com/docs/api/plans
-    body_fields: [planName, credits, pricing, rateLimit, status]
-    consequence: write
-  - name: get_plan
-    description: Fetch a single plan.
-    source_operation: 'POST /plan/details'
-    docs: https://www.reqkey.com/docs/api/plans
-    body_fields: [planId]
-    consequence: read
-  - name: list_plans
-    description: List every plan in the project.
-    source_operation: 'POST /plan/list'
-    docs: https://www.reqkey.com/docs/api/plans
-    consequence: read
-  - name: update_plan
-    description: Change a plan's credits, rate limit, pricing, name or status.
-    source_operation: 'POST /plan/update'
-    docs: https://www.reqkey.com/docs/api/plans
-    consequence: write
-  - name: delete_plan
-    description: Delete a plan.
-    source_operation: 'POST /plan/delete'
-    docs: https://www.reqkey.com/docs/api/plans
-    consequence: destructive
-  - name: create_api
-    description: Register a service to meter and get back an apiId.
-    source_operation: 'POST /api/create'
-    docs: https://www.reqkey.com/docs/api/apis
-    body_fields: [apiName, apiId]
-    consequence: write
-  - name: delete_api
-    description: Soft- (30-day recovery) or hard-delete a registered API.
-    source_operation: 'POST /api/delete'
-    docs: https://www.reqkey.com/docs/api/apis
-    body_fields: [apiId, permanent]
-    consequence: destructive
-  - name: get_project
-    description: Fetch project metadata plus consumer and API counts.
-    source_operation: 'POST /project/details'
-    docs: https://www.reqkey.com/docs/api/projects
-    consequence: read
-  - name: update_project
-    description: Rename a project.
-    source_operation: 'POST /project/update'
-    docs: https://www.reqkey.com/docs/api/projects
-    body_fields: [name]
-    consequence: write
-  - name: delete_project
-    description: Soft- or hard-delete a project and cascade to its children.
-    source_operation: 'POST /project/delete'
-    docs: https://www.reqkey.com/docs/api/projects
-    body_fields: [permanent]
-    consequence: safety-critical
-  - name: reroll_root_key
-    description: Regenerate the project root key and migrate every child resource to it.
-    source_operation: 'POST /project/rootkey-reroll'
-    docs: https://www.reqkey.com/docs/api/projects
-    consequence: safety-critical
-  - name: ingest_request_log
-    description: Ship request/response metadata for a validated request into analytics.
-    source_operation: 'POST /ingest'
-    docs: https://www.reqkey.com/docs/api/ingestion
-    body_fields: [requestId, method, endpoint, path, statusCode, latencyMs, clientIp, userAgent, userId, queryParams, requestHeaders, requestBody, responseHeaders, responseBody, timestamp]
-    consequence: write
-  - name: get_analytics_stats
-    description: Aggregate request, error-rate and latency stats over api_traffic or key_activity.
-    source_operation: 'POST /analytics/stats'
-    docs: https://www.reqkey.com/docs/api/analytics
-    body_fields: [source, timeRange, apiId, filters]
-    consequence: read
-  - name: get_analytics_stat_details
-    description: Timeseries plus breakdown for a single stat card.
-    source_operation: 'POST /analytics/stats/details'
-    docs: https://www.reqkey.com/docs/api/analytics
-    body_fields: [source, card, timeRange, filters]
-    consequence: read
-  - name: get_analytics_timeseries
-    description: Time-bucketed requests, errors and latency for charting.
-    source_operation: 'POST /analytics/timeseries'
-    docs: https://www.reqkey.com/docs/api/analytics
-    body_fields: [source, timeRange, filters]
-    consequence: read
-  - name: get_analytics_breakdown
-    description: Break traffic down by a dimension (endpoint, method, status, consumer, region).
-    source_operation: 'POST /analytics/breakdown'
-    docs: https://www.reqkey.com/docs/api/analytics
-    consequence: read
-  - name: search_logs
-    description: Search the request log list.
-    source_operation: 'POST /analytics/logs'
-    docs: https://www.reqkey.com/docs/api/analytics
-    consequence: read
-  - name: get_log_detail
-    description: Fetch one request log with full detail.
-    source_operation: 'POST /analytics/logs/detail'
-    docs: https://www.reqkey.com/docs/api/analytics
-    consequence: read
-  - name: health_check
-    description: Unauthenticated liveness check against the ReqKey edge.
-    source_operation: 'GET /health'
-    docs: https://www.reqkey.com/docs/api/platform
-    consequence: read
+- name: validate_key
+  description: Validate a consumer API key, enforce scope and rate limit, and deduct credits.
+  source_operation: POST /key/validate
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - key
+  - apiId
+  - credits
+  - resource
+  consequence: write
+  note: 'Not read-only — a successful call deducts from the consumer''s credit pool and is not idempotent.
+    An agent should pass `credits: 0` for inspection.'
+- name: get_key_details
+  description: Fetch a key with its consumer's credit state.
+  source_operation: POST /key/details
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - keyId
+  - key
+  consequence: read
+- name: get_key_credits
+  description: Read a consumer's current credit limit and remaining balance via one of its keys.
+  source_operation: POST /key/credits
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - key
+  consequence: read
+- name: create_key
+  description: Mint a new API key for a consumer, optionally scoped to specific APIs.
+  source_operation: POST /key/create
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - consumerId
+  - allowedApis
+  - prefix
+  - tag
+  - metadata
+  - status
+  consequence: write
+- name: update_key
+  description: Change a key's allowed APIs, status, tag or metadata, or reroll its value.
+  source_operation: POST /key/update
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - keyId
+  - key
+  - allowedApis
+  - rerollKey
+  - status
+  - tag
+  - metadata
+  consequence: write
+- name: delete_key
+  description: Soft- or hard-delete a key.
+  source_operation: POST /key/delete
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - keyId
+  - key
+  - permanent
+  consequence: destructive
+- name: recharge_credits
+  description: Add credits to a consumer's pool without changing its limit.
+  source_operation: POST /key/recharge
+  docs: https://www.reqkey.com/docs/api/keys
+  body_fields:
+  - key
+  - credits
+  consequence: write
+- name: create_consumer
+  description: Create one of your customers, with a credit pool and optional rate limit.
+  source_operation: POST /consumer/create
+  docs: https://www.reqkey.com/docs/api/consumers
+  body_fields:
+  - name
+  - credits
+  - planId
+  - rateLimit
+  - tags
+  - webhookUrl
+  - metadata
+  - imageUrl
+  - externalId
+  - status
+  consequence: write
+- name: update_consumer
+  description: Update a consumer, including credits, rate limit and status (the master switch).
+  source_operation: POST /consumer/update
+  docs: https://www.reqkey.com/docs/api/consumers
+  body_fields:
+  - consumerId
+  - name
+  - status
+  - planId
+  - credits
+  - rateLimit
+  - tags
+  - metadata
+  - webhookUrl
+  - imageUrl
+  - externalId
+  - expiresAt
+  consequence: write
+- name: get_consumer
+  description: Fetch a consumer with full credit and rate-limit status.
+  source_operation: POST /consumer/details
+  docs: https://www.reqkey.com/docs/api/consumers
+  body_fields:
+  - consumerId
+  consequence: read
+- name: list_consumers
+  description: Page through consumers with search, status and plan filters.
+  source_operation: POST /consumer/list
+  docs: https://www.reqkey.com/docs/api/consumers
+  body_fields:
+  - page
+  - limit
+  - search
+  - planId
+  - status
+  - sortBy
+  - sortOrder
+  consequence: read
+- name: list_consumer_keys
+  description: List the keys belonging to a consumer.
+  source_operation: POST /consumer/keys
+  docs: https://www.reqkey.com/docs/api/consumers
+  consequence: read
+- name: delete_consumer
+  description: Soft- or hard-delete a consumer and its keys.
+  source_operation: POST /consumer/delete
+  docs: https://www.reqkey.com/docs/api/consumers
+  consequence: destructive
+- name: create_plan
+  description: Create a reusable credit and rate-limit template.
+  source_operation: POST /plan/create
+  docs: https://www.reqkey.com/docs/api/plans
+  body_fields:
+  - planName
+  - credits
+  - pricing
+  - rateLimit
+  - status
+  consequence: write
+- name: get_plan
+  description: Fetch a single plan.
+  source_operation: POST /plan/details
+  docs: https://www.reqkey.com/docs/api/plans
+  body_fields:
+  - planId
+  consequence: read
+- name: list_plans
+  description: List every plan in the project.
+  source_operation: POST /plan/list
+  docs: https://www.reqkey.com/docs/api/plans
+  consequence: read
+- name: update_plan
+  description: Change a plan's credits, rate limit, pricing, name or status.
+  source_operation: POST /plan/update
+  docs: https://www.reqkey.com/docs/api/plans
+  consequence: write
+- name: delete_plan
+  description: Delete a plan.
+  source_operation: POST /plan/delete
+  docs: https://www.reqkey.com/docs/api/plans
+  consequence: destructive
+- name: create_api
+  description: Register a service to meter and get back an apiId.
+  source_operation: POST /api/create
+  docs: https://www.reqkey.com/docs/api/apis
+  body_fields:
+  - apiName
+  - apiId
+  consequence: write
+- name: delete_api
+  description: Soft- (30-day recovery) or hard-delete a registered API.
+  source_operation: POST /api/delete
+  docs: https://www.reqkey.com/docs/api/apis
+  body_fields:
+  - apiId
+  - permanent
+  consequence: destructive
+- name: get_project
+  description: Fetch project metadata plus consumer and API counts.
+  source_operation: POST /project/details
+  docs: https://www.reqkey.com/docs/api/projects
+  consequence: read
+- name: update_project
+  description: Rename a project.
+  source_operation: POST /project/update
+  docs: https://www.reqkey.com/docs/api/projects
+  body_fields:
+  - name
+  consequence: write
+- name: delete_project
+  description: Soft- or hard-delete a project and cascade to its children.
+  source_operation: POST /project/delete
+  docs: https://www.reqkey.com/docs/api/projects
+  body_fields:
+  - permanent
+  consequence: safety-critical
+- name: reroll_root_key
+  description: Regenerate the project root key and migrate every child resource to it.
+  source_operation: POST /project/rootkey-reroll
+  docs: https://www.reqkey.com/docs/api/projects
+  consequence: safety-critical
+- name: ingest_request_log
+  description: Ship request/response metadata for a validated request into analytics.
+  source_operation: POST /ingest
+  docs: https://www.reqkey.com/docs/api/ingestion
+  body_fields:
+  - requestId
+  - method
+  - endpoint
+  - path
+  - statusCode
+  - latencyMs
+  - clientIp
+  - userAgent
+  - userId
+  - queryParams
+  - requestHeaders
+  - requestBody
+  - responseHeaders
+  - responseBody
+  - timestamp
+  consequence: write
+- name: get_analytics_stats
+  description: Aggregate request, error-rate and latency stats over api_traffic or key_activity.
+  source_operation: POST /analytics/stats
+  docs: https://www.reqkey.com/docs/api/analytics
+  body_fields:
+  - source
+  - timeRange
+  - apiId
+  - filters
+  consequence: read
+- name: get_analytics_stat_details
+  description: Timeseries plus breakdown for a single stat card.
+  source_operation: POST /analytics/stats/details
+  docs: https://www.reqkey.com/docs/api/analytics
+  body_fields:
+  - source
+  - card
+  - timeRange
+  - filters
+  consequence: read
+- name: get_analytics_timeseries
+  description: Time-bucketed requests, errors and latency for charting.
+  source_operation: POST /analytics/timeseries
+  docs: https://www.reqkey.com/docs/api/analytics
+  body_fields:
+  - source
+  - timeRange
+  - filters
+  consequence: read
+- name: get_analytics_breakdown
+  description: Break traffic down by a dimension (endpoint, method, status, consumer, region).
+  source_operation: POST /analytics/breakdown
+  docs: https://www.reqkey.com/docs/api/analytics
+  consequence: read
+- name: search_logs
+  description: Search the request log list.
+  source_operation: POST /analytics/logs
+  docs: https://www.reqkey.com/docs/api/analytics
+  consequence: read
+- name: get_log_detail
+  description: Fetch one request log with full detail.
+  source_operation: POST /analytics/logs/detail
+  docs: https://www.reqkey.com/docs/api/analytics
+  consequence: read
+- name: health_check
+  description: Unauthenticated liveness check against the ReqKey edge.
+  source_operation: GET /health
+  docs: https://www.reqkey.com/docs/api/platform
+  consequence: read
 coverage:
   documented_endpoints: 32
   tools_proposed: 32
@@ -223,8 +312,12 @@ coverage:
   reason_no_input_schema: ReqKey publishes no OpenAPI, so no parameter contract exists to bind.
 gap:
   owner: provider
-  recommendation: >-
-    Publishing an OpenAPI first would make an MCP server mechanical rather than
-    hand-written, and would give each tool a real inputSchema. A read-scoped or
-    restricted credential should land before any agent-facing surface, since the
-    only credential ReqKey issues today can delete an entire project.
+  recommendation: Publishing an OpenAPI first would make an MCP server mechanical rather than hand-written,
+    and would give each tool a real inputSchema. A read-scoped or restricted credential should land before
+    any agent-facing surface, since the only credential ReqKey issues today can delete an entire project.
+deployment:
+  mode: none
+  verified: derived
+  tools: 32
+  checked: '2026-08-12'
+  source: catalog MCP census
