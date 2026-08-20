@@ -16,6 +16,17 @@ created: '2026-07-26'
 modified: '2026-08-09'
 specificationVersion: '0.23'
 tags:
+  - APIKeys
+  - Authentication
+  - Authorization
+  - Rate Limiting
+  - Usage Metering
+  - API Analytics
+  - API Management
+  - Developer Tools
+  - Middleware
+  - Observability
+tags_raw:
   - api-keys
   - authentication
   - authorization
@@ -34,6 +45,17 @@ apis:
     humanURL: https://www.reqkey.com/docs
     baseURL: https://api.reqkey.com
     tags:
+      - APIKeys
+      - Authentication
+      - Authorization
+      - Rate Limiting
+      - Usage Metering
+      - API Analytics
+      - API Management
+      - Developer Tools
+      - Middleware
+      - Observability
+    tags_raw:
       - api-keys
       - authentication
       - authorization
