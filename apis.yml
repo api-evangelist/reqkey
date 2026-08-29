@@ -11,6 +11,17 @@ description: >-
   logs to a validation by requestId and feeds an Analytics API over two datasets. Seven first-party SDKs
   wrap both calls as framework middleware.
 url: https://raw.githubusercontent.com/api-evangelist/reqkey/refs/heads/main/apis.yml
+deliveryModel:
+  model: saas
+  open_source: false
+  commercial: true
+  callable_host: false
+  label: Hosted service · you call their endpoint
+  confidence: medium
+  source:
+  - pricing
+  generated: '2026-08-28'
+  method: derived
 image: https://www.reqkey.com/og-image.png
 created: '2026-07-26'
 modified: '2026-08-09'
