@@ -96,3 +96,41 @@ data_retention:
   traffic_logs: 30 days (Pro)
   audit_logs: 180 days (Pro)
 signup: https://www.reqkey.com/sign-in?mode=signup
+x-canonical:
+  generated: '2026-10-08'
+  vocabulary: all/0-working/economics/plans-canonical.yml
+  models:
+  - free
+  - metered
+  - negotiated
+  units:
+  - request
+  plans:
+  - name: Free
+    access: freemium
+    model: free
+    model_how: derived
+    units:
+    - other
+    - request
+    periods:
+    - month
+    - unbounded
+  - name: Pro
+    access: other
+    model: metered
+    model_how: stated
+    units:
+    - other
+    - request
+    periods:
+    - month
+    - unbounded
+  - name: Enterprise
+    access: negotiated
+    model: negotiated
+    model_how: stated
+    units:
+    - request
+    periods:
+    - month
