@@ -1,4 +1,4 @@
-# reqkey
+# ReqKey
 
 <!-- API-EVANGELIST-PROVENANCE:BEGIN -->
 > ### About this repository
@@ -64,4 +64,115 @@
 > Full detail: **[Where this data comes from](https://apievangelist.com/about/where-our-data-comes-from)**
 <!-- API-EVANGELIST-PROVENANCE:END -->
 
-Out-of-band API key management, usage metering, rate limiting, and API traffic analytics. Server-side validation via a REST API with per-consumer credit pools, sub-5ms Redis-backed validation, and multi-region AWS deployment.
+ReqKey is out-of-band API key authentication, usage credits, rate limiting and request analytics as a service for teams that sell or expose an API. It never sits in front of customer traffic: your own middleware makes one call to POST /key/validate per request, which checks the key, deducts a credit from that customer's pool and records the decision, typically in under 5ms over a reused connection. The defining design choice is that credits and rate limits live on the CONSUMER rather than the key, so issuing a customer fifty keys never multiplies their plan into fifty quotas and disabling a consumer stops all of its keys at once. Validation is Redis-backed and runs in multiple AWS regions with a global sync layer reconciling credit balances. A second endpoint, POST /ingest, correlates full request/response logs to a validation by requestId and feeds an Analytics API over two datasets. Seven first-party SDKs wrap both calls as framework middleware.
+
+**Areas:** APIKeys · Authentication · Authorization · Rate Limiting · Usage Metering · API Analytics · API Management · Developer Tools · Middleware · Observability
+
+## ReqKey on APIs.io
+
+Everything profiled for ReqKey is published on APIs.io rather than in this repository. Start at the provider page — **[apis.io/providers/reqkey/](https://apis.io/providers/reqkey/)** — or go straight to one of the APIs or properties below.
+
+### APIs (1)
+
+- [ReqKey REST API](https://apis.io/apis/reqkey/reqkey-rest-api/) — REST API for API key management, usage credits/metering, rate limiting, and traffic analytics. POST/JSON endpoints authenticated with a project root key via…
+
+### Published properties
+
+Each property below is a page on APIs.io carrying the machine-readable artifact and what it says.
+
+#### MCP servers (1)
+
+Model Context Protocol servers that expose the API to agents.
+
+- [reqkey](https://apis.io/servers/reqkey/reqkey/)
+
+#### Security (3)
+
+Authentication, trust centre, and vulnerability disclosure.
+
+- [Reqkey Authentication](https://apis.io/security/reqkey/reqkey-authentication/)
+- [Reqkey Domain Security](https://apis.io/security/reqkey/reqkey-domain-security/)
+- [Reqkey Vulnerability Disclosure](https://apis.io/security/reqkey/reqkey-vulnerability-disclosure/)
+
+#### Plans and pricing (1)
+
+Published plans, tiers and prices.
+
+- [Reqkey Plans](https://apis.io/plans/reqkey/reqkey-plans/)
+
+#### Rate limits (1)
+
+Published request limits.
+
+- [Reqkey Rate Limits](https://apis.io/rate-limits/reqkey/reqkey-rate-limits/)
+
+## Where to find this API
+
+Links to the company's own pages. This repository publishes no copy of their specifications — the canonical document is theirs and lives at the URLs below.
+
+- [Website](https://www.reqkey.com)
+- [Documentation](https://www.reqkey.com/docs)
+- [Getting started](https://www.reqkey.com/docs/how-it-works)
+- [API reference](https://www.reqkey.com/docs/api/keys)
+- [Pricing](https://www.reqkey.com/pricing)
+- [Sign up](https://www.reqkey.com/sign-in?mode=signup)
+- [Support](https://www.reqkey.com/contact)
+- [Blog](https://www.reqkey.com/blog)
+- [Terms of service](https://www.reqkey.com/legal/terms)
+- [Privacy policy](https://www.reqkey.com/legal/privacy)
+- [GitHub](https://github.com/Req-Key)
+
+## API Evangelist rating
+
+**Kin Score 42.2** — developing · rubric 0.25.0 · scored 2026-10-23
+
+| Facet | Score |
+|---|---|
+| Discoverability | 73.2 |
+| Contract quality | 0.0 |
+| Contract governance | 4.5 |
+| Operational transparency | 44.7 |
+| Developer ergonomics | 54.8 |
+| Access clarity | 76.3 |
+
+**Agent readiness 7.9** — agent-aware
+
+| Agent-readiness dimension | Result |
+|---|---|
+| Spec Presence | — |
+| Agentic Access | — |
+| Reversibility Documented | — |
+| MCP Server | — |
+| Auth Clarity | bearer (partial credit) |
+| Idempotency | — |
+| Error Semantics | documented (partial credit) |
+| OpenAPI Examples | — |
+| Rate Limit Signal | documented (partial credit) |
+| Event Surface Described | — |
+| Agent Skills | — |
+| Well Known Catalog | — |
+| Consent Identity | — |
+| Agent Card | — |
+| Dry Run Mode | — |
+| Delegated Identity | — |
+| Protected Resource Metadata | — |
+| Dynamic Client Registration | — |
+| Agentic Commerce | — |
+| Pagination Ratio | na |
+| Operation Distinctiveness | na |
+
+**Regulatory alignment 30.4** — Horizontal (data, software, accessibility, platform)
+
+The rubric is published at [github.com/api-evangelist/kin-score](https://github.com/api-evangelist/kin-score). The per-check breakdown behind these numbers — which checks were earned, partial or missed — along with score history and how this provider compares to its peers, is available at [apis.io/providers/reqkey/](https://apis.io/providers/reqkey/).
+
+## How this profile is made
+
+API Evangelist profiles a company's public API surface the way a developer would find it: the website, developer portal and documentation, the specifications it publishes, its public repositories, and its pricing, status and changelog pages. From that it derives the properties above — contracts split per API, workflows, schemas, collections, governance rules, plans and rate limits — and scores them against the published [Kin Score rubric](https://github.com/api-evangelist/kin-score).
+
+The artifacts are published on [APIs.io](https://apis.io), not in this repository. This repository is the public record for ReqKey: the place to say something is wrong, missing or out of date, and to ask for a re-score or a removal.
+
+## Open an issue
+
+- **Something about this listing** — a wrong description, a missing API, a stale artifact or a question about the rating: [open an issue on this repository](https://github.com/api-evangelist/reqkey/issues/new).
+- **A new API, or one that is not in the catalog yet** — [submit it on APIs.io](https://apis.io/add/).
+- **Anything else** — [the APIs.io inbox](https://github.com/api-search/inbox/issues/new) or [info@apievangelist.com](mailto:info@apievangelist.com).
