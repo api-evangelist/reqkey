@@ -1,0 +1,172 @@
+# Pricing transcribed from the provider's own page — see provenance. Numbers are quoted, not derived.
+generated: '2026-10-28'
+method: searched
+source: https://www.reqkey.com/pricing
+sources:
+- https://www.reqkey.com/pricing
+provenance:
+  tool: engine/economics/harvest_pricing.py
+  run: 20261028T161713
+  grounding: every price_text was found verbatim in the fetched page text
+audience: developer-api
+pricing_basis: per-call
+delivery:
+  delivery: managed
+  method: page
+  read: '2026-10-28'
+published: true
+note: 'Single meter: one request = one key validation or one logged API call. Teams/seats free. Billed
+  monthly, paid up front; Enterprise (1B+) is contact sales.'
+plan_count: 9
+currency: USD
+plans:
+- name: Free
+  price_text: $0 /mo
+  price: 0
+  currency: USD
+  period: month
+  unit: requests
+  included_quota: 5 million free requests every month; 1,000 API keys; Unlimited APIs; Single-member workspace
+- name: Pro
+  price_text: $25 /mo
+  price: 25
+  currency: USD
+  period: month
+  unit: requests
+  included_quota: 10M requests included / month; 100,000 API keys; 30-day traffic logs · 180-day audit
+    logs
+  overage: No hard cutoffs when you cross your plan; anything we accept past your allowance is never billed
+- name: Enterprise
+  price_text: Contact sales
+  period: none
+  included_quota: Everything in Pro; Volume pricing past 1B requests; SLA & custom contracts
+- name: Volume tier 20M
+  price_text: $ 50 /mo
+  price: 50
+  currency: USD
+  period: month
+  unit: 20M requests/mo
+  included_quota: 20M requests
+  overage: $2.50 per 1M
+- name: Volume tier 40M
+  price_text: $ 75 /mo
+  price: 75
+  currency: USD
+  period: month
+  unit: 40M requests/mo
+  included_quota: 40M requests
+  overage: $1.88 per 1M
+- name: Volume tier 100M
+  price_text: $ 150 /mo
+  price: 150
+  currency: USD
+  period: month
+  unit: 100M requests/mo
+  included_quota: 100M requests
+  overage: $1.50 per 1M
+- name: Volume tier 200M
+  price_text: $ 200 /mo
+  price: 200
+  currency: USD
+  period: month
+  unit: 200M requests/mo
+  included_quota: 200M requests
+  overage: $1 per 1M
+- name: Volume tier 500M
+  price_text: $ 350 /mo
+  price: 350
+  currency: USD
+  period: month
+  unit: 500M requests/mo
+  included_quota: 500M requests
+  overage: $0.70 per 1M
+- name: Volume tier 1B
+  price_text: $ 500 /mo
+  price: 500
+  currency: USD
+  period: month
+  unit: 1B requests/mo
+  included_quota: 1B requests
+  overage: $0.50 per 1M
+rate_limit_statements:
+- No rate limits on any plan
+x-canonical:
+  generated: '2026-11-01'
+  vocabulary: engine/economics/plans-canonical.yml
+  models:
+  - hybrid
+  - metered
+  units:
+  - request
+  plans:
+  - name: Free
+    access: other
+    model: metered
+    model_how: derived
+    units:
+    - request
+    periods:
+    - month
+  - name: Pro
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - request
+    periods:
+    - month
+  - name: Enterprise
+    access: other
+    model: unstated
+    model_how: derived
+    units: []
+    periods:
+    - none
+  - name: Volume tier 20M
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
+  - name: Volume tier 40M
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
+  - name: Volume tier 100M
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
+  - name: Volume tier 200M
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
+  - name: Volume tier 500M
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
+  - name: Volume tier 1B
+    access: other
+    model: hybrid
+    model_how: derived
+    units:
+    - other
+    periods:
+    - month
