@@ -91,7 +91,7 @@ plans:
 rate_limit_statements:
 - No rate limits on any plan
 x-canonical:
-  generated: '2026-11-13'
+  generated: '2026-11-20'
   vocabulary: engine/economics/plans-canonical.yml
   models:
   - hybrid
